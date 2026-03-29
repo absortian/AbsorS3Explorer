@@ -1,0 +1,28 @@
+import { app } from 'electron'
+import * as fs from 'fs/promises'
+import * as path from 'path'
+import { S3Connection } from '../shared/types'
+
+const STORE_PATH = path.join(app.getPath('userData'), 'connections.json')
+
+export async function getConnections(): Promise<S3Connection[]> {
+  try {
+    const data = await fs.readFile(STORE_PATH, 'utf-8')
+    return JSON.parse(data)
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      return [] // File doesn't exist yet
+    }
+    console.error('Failed to read connections:', error)
+    return []
+  }
+}
+
+export async function saveConnections(connections: S3Connection[]): Promise<void> {
+  try {
+    await fs.writeFile(STORE_PATH, JSON.stringify(connections, null, 2), 'utf-8')
+  } catch (error) {
+    console.error('Failed to save connections:', error)
+    throw error
+  }
+}

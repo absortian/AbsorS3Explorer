@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<defs>
+  <linearGradient id="cloud-gradient" x1="1" y1="1" x2="0" y2="0">
+    <stop offset="0" stop-color="blue"/>
+    <stop offset="1" stop-color="#00c9ff"/>
+  </linearGradient>
+</defs>
+<path style="fill:url(#cloud-gradient);" d="M501.675,311.617c0-62.804-46.1-114.845-106.307-124.133
+	c-16.384-64.772-75.051-112.711-144.913-112.711c-70.714,0-129.958,49.114-145.493,115.088
+	c-54.393,13.796-94.638,63.076-94.638,121.757c0,69.37,56.24,125.611,125.61,125.611h241.689v-0.021
+	C446.275,436.373,501.675,380.465,501.675,311.617z"/>
+</svg>
