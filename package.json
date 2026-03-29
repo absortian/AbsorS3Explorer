@@ -1,11 +1,15 @@
 {
   "name": "absor-file-explorer",
-  "version": "1.0.0",
-  "description": "An Electron application with React and TypeScript",
+  "version": "0.0.1",
+  "description": "A dual-panel desktop file manager for transferring files between local filesystem and S3-compatible storage",
   "license": "MIT",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "absortian",
+  "homepage": "https://github.com/absortian/AbsorS3Explorer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/absortian/AbsorS3Explorer.git"
+  },
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",

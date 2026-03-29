@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            build_cmd: npm run build:mac
+          - os: windows-latest
+            build_cmd: npm run build:win
+          - os: ubuntu-latest
+            build_cmd: npm run build:linux
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and package
+        run: ${{ matrix.build_cmd }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: false
+          body: |
+            ## Absor S3 Explorer — Primera versión 🚀
+
+            Explorador de archivos dual-panel para transferir archivos entre el sistema de archivos local y almacenamiento compatible con S3 (AWS S3, MinIO, DigitalOcean Spaces, etc.).
+
+            ### Características
+            - Explorador local y S3 en paneles duales
+            - Arrastrar y soltar para transferencias entre paneles
+            - Gestión de conexiones S3 persistentes
+            - Cola de transferencias en tiempo real con progreso
+            - Soporte para cualquier almacenamiento compatible con S3
+
+            ### Descargas
+            | Plataforma | Archivo |
+            |---|---|
+            | macOS (Apple Silicon) | `.dmg` o `.zip` |
+            | Windows | `-setup.exe` |
+            | Linux | `.AppImage` o `.deb` |
+          files: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.blockmap
+            dist/latest*.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

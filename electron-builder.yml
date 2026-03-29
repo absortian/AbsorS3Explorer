@@ -12,14 +12,14 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: myapp
+  executableName: AbsorS3Explorer
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
 mac:
-  icon: build/icon.icns
+  icon: build/icon.png
   target:
     - target: dmg
       arch:
@@ -43,13 +43,13 @@ dmg:
 linux:
   target:
     - AppImage
-    - snap
     - deb
-  maintainer: electronjs.org
+  maintainer: absortian
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github
+  owner: absortian
+  repo: AbsorS3Explorer
