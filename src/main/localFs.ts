@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises'
 import * as os from 'os'
 import * as path from 'path'
+import { existsSync } from 'fs'
 
 export async function getLocalHome() {
   return os.homedir()
@@ -45,5 +46,23 @@ export async function listLocalDir(dirPath: string) {
     }
   } catch (error: any) {
     throw new Error(`Failed to read directory: ${error.message}`)
+  }
+}
+
+export async function createLocalDir(dirPath: string, name: string) {
+  const fullPath = path.join(dirPath, name)
+  if (existsSync(fullPath)) {
+    throw new Error('A folder with that name already exists')
+  }
+  await fs.mkdir(fullPath)
+  return fullPath
+}
+
+export async function deleteLocalItem(itemPath: string) {
+  const stats = await fs.stat(itemPath)
+  if (stats.isDirectory()) {
+    await fs.rm(itemPath, { recursive: true })
+  } else {
+    await fs.unlink(itemPath)
   }
 }

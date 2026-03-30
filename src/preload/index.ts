@@ -12,9 +12,16 @@ const api = {
   downloadFile: (conn: S3Connection, bucket: string, key: string, localDestPath: string) => ipcRenderer.invoke('s3-download-file', conn, bucket, key, localDestPath),
   createFolder: (conn: S3Connection, bucket: string, key: string) => ipcRenderer.invoke('s3-create-folder', conn, bucket, key),
   deleteObject: (conn: S3Connection, bucket: string, key: string) => ipcRenderer.invoke('s3-delete-object', conn, bucket, key),
+  deleteFolder: (conn: S3Connection, bucket: string, prefix: string) => ipcRenderer.invoke('s3-delete-folder', conn, bucket, prefix),
   showSaveDialog: (defaultPath: string) => ipcRenderer.invoke('show-save-dialog', defaultPath),
   getLocalHome: () => ipcRenderer.invoke('local-get-home'),
-  listLocalDir: (dirPath: string) => ipcRenderer.invoke('local-list-dir', dirPath)
+  listLocalDir: (dirPath: string) => ipcRenderer.invoke('local-list-dir', dirPath),
+  createLocalDir: (dirPath: string, name: string) => ipcRenderer.invoke('local-create-dir', dirPath, name),
+  deleteLocalItem: (itemPath: string) => ipcRenderer.invoke('local-delete', itemPath),
+  getTheme: () => ipcRenderer.invoke('get-theme'),
+  saveTheme: (theme: string) => ipcRenderer.invoke('save-theme', theme),
+  exportConnections: () => ipcRenderer.invoke('export-connections'),
+  importConnections: () => ipcRenderer.invoke('import-connections')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

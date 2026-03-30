@@ -31,6 +31,24 @@
   --color-text: var(--ev-c-text-1);
 }
 
+[data-theme="light"] {
+  --ev-c-text-1: rgba(0, 0, 0, 0.87);
+  --ev-c-text-2: rgba(0, 0, 0, 0.6);
+  --ev-c-text-3: rgba(0, 0, 0, 0.38);
+
+  --ev-c-gray-1: #c4c4c4;
+  --ev-c-gray-2: #d4d4d4;
+  --ev-c-gray-3: #e4e4e4;
+
+  --ev-button-alt-bg: var(--ev-c-gray-3);
+  --ev-button-alt-hover-bg: var(--ev-c-gray-2);
+
+  --color-background: var(--ev-c-white);
+  --color-background-soft: var(--ev-c-white-soft);
+  --color-background-mute: var(--ev-c-white-mute);
+  --color-text: var(--ev-c-text-1);
+}
+
 *,
 *::before,
 *::after {

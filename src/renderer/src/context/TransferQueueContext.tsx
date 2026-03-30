@@ -17,6 +17,7 @@ interface TransferQueueContextType {
   addJob: (job: Omit<TransferJob, 'id' | 'status'>) => void
   removeJob: (id: string) => void
   clearCompleted: () => void
+  retryJob: (id: string) => void
   lastJobUpdate: number
 }
 
@@ -42,6 +43,10 @@ export function TransferQueueProvider({ children }: { children: React.ReactNode 
   
   const clearCompleted = () => {
     setJobs(prev => prev.filter(j => j.status !== 'done' && j.status !== 'error'))
+  }
+
+  const retryJob = (id: string) => {
+    setJobs(prev => prev.map(j => j.id === id ? { ...j, status: 'pending' as const, error: undefined } : j))
   }
 
   const updateJobStatus = (id: string, status: TransferJob['status'], error?: string) => {
@@ -87,7 +92,7 @@ export function TransferQueueProvider({ children }: { children: React.ReactNode 
   }
 
   return (
-    <TransferQueueContext.Provider value={{ jobs, addJob, removeJob, clearCompleted, lastJobUpdate }}>
+    <TransferQueueContext.Provider value={{ jobs, addJob, removeJob, clearCompleted, retryJob, lastJobUpdate }}>
       {children}
     </TransferQueueContext.Provider>
   )

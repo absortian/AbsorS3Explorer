@@ -1,4 +1,4 @@
-import { S3Client, ListObjectsV2Command, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, ListBucketsCommand } from '@aws-sdk/client-s3'
+import { S3Client, ListObjectsV2Command, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListBucketsCommand } from '@aws-sdk/client-s3'
 import { S3Connection } from '../shared/types'
 import * as fs from 'fs/promises'
 
@@ -101,4 +101,45 @@ export async function downloadFile(connection: S3Connection, bucket: string, key
   // Node.js streams
   const byteArray = await response.Body.transformToByteArray()
   await fs.writeFile(localDestPath, byteArray)
+}
+
+export async function deleteFolder(connection: S3Connection, bucket: string, prefix: string) {
+  if (!bucket) throw new Error('No bucket specified')
+  if (!prefix.endsWith('/')) prefix += '/'
+  const client = getClient(connection)
+
+  // List all objects under this prefix recursively
+  let continuationToken: string | undefined
+  const allKeys: { Key: string }[] = []
+
+  do {
+    const listCommand = new ListObjectsV2Command({
+      Bucket: bucket,
+      Prefix: prefix,
+      ContinuationToken: continuationToken
+    })
+    const response = await client.send(listCommand)
+    if (response.Contents) {
+      for (const obj of response.Contents) {
+        if (obj.Key) allKeys.push({ Key: obj.Key })
+      }
+    }
+    continuationToken = response.NextContinuationToken
+  } while (continuationToken)
+
+  if (allKeys.length === 0) {
+    // Empty folder marker
+    await deleteObject(connection, bucket, prefix)
+    return
+  }
+
+  // Delete in batches of 1000 (S3 limit)
+  for (let i = 0; i < allKeys.length; i += 1000) {
+    const batch = allKeys.slice(i, i + 1000)
+    const deleteCommand = new DeleteObjectsCommand({
+      Bucket: bucket,
+      Delete: { Objects: batch }
+    })
+    await client.send(deleteCommand)
+  }
 }

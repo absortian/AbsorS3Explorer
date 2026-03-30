@@ -13,9 +13,16 @@ declare global {
       downloadFile: (conn: S3Connection, bucket: string, key: string, localDestPath: string) => Promise<void>
       createFolder: (conn: S3Connection, bucket: string, key: string) => Promise<void>
       deleteObject: (conn: S3Connection, bucket: string, key: string) => Promise<void>
+      deleteFolder: (conn: S3Connection, bucket: string, prefix: string) => Promise<void>
       showSaveDialog: (defaultPath: string) => Promise<string | null>
       getLocalHome: () => Promise<string>
       listLocalDir: (dirPath: string) => Promise<{ currentPath: string, folders: string[], files: Array<{name: string, path: string, size: number, lastModified: string}> }>
+      createLocalDir: (dirPath: string, name: string) => Promise<string>
+      deleteLocalItem: (itemPath: string) => Promise<void>
+      getTheme: () => Promise<string>
+      saveTheme: (theme: string) => Promise<void>
+      exportConnections: () => Promise<boolean>
+      importConnections: () => Promise<S3Connection[] | null>
     }
   }
 }

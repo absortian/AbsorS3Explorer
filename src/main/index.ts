@@ -2,10 +2,11 @@ import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { getConnections, saveConnections } from './store'
-import { listBuckets, listObjects, uploadFile, downloadFile, createFolder, deleteObject } from './s3'
+import { getConnections, saveConnections, getTheme, saveTheme } from './store'
+import { listBuckets, listObjects, uploadFile, downloadFile, createFolder, deleteObject, deleteFolder } from './s3'
 import { S3Connection } from '../shared/types'
-import { getLocalHome, listLocalDir } from './localFs'
+import { getLocalHome, listLocalDir, createLocalDir, deleteLocalItem } from './localFs'
+import * as fs from 'fs/promises'
 
 
 function createWindow(): void {
@@ -70,15 +71,49 @@ app.whenReady().then(() => {
   ipcMain.handle('s3-download-file', async (_, conn: S3Connection, bucket: string, key: string, localDestPath: string) => await downloadFile(conn, bucket, key, localDestPath))
   ipcMain.handle('s3-create-folder', async (_, conn: S3Connection, bucket: string, key: string) => await createFolder(conn, bucket, key))
   ipcMain.handle('s3-delete-object', async (_, conn: S3Connection, bucket: string, key: string) => await deleteObject(conn, bucket, key))
+  ipcMain.handle('s3-delete-folder', async (_, conn: S3Connection, bucket: string, prefix: string) => await deleteFolder(conn, bucket, prefix))
   
   // Local FS IPC handlers
   ipcMain.handle('local-get-home', async () => await getLocalHome())
   ipcMain.handle('local-list-dir', async (_, dirPath: string) => await listLocalDir(dirPath))
+  ipcMain.handle('local-create-dir', async (_, dirPath: string, name: string) => await createLocalDir(dirPath, name))
+  ipcMain.handle('local-delete', async (_, itemPath: string) => await deleteLocalItem(itemPath))
   ipcMain.handle('show-save-dialog', async (_, defaultPath: string) => {
     const mainWindow = BrowserWindow.getAllWindows()[0]
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, { defaultPath })
     if (canceled) return null
     return filePath
+  })
+
+  // Settings IPC handlers
+  ipcMain.handle('get-theme', async () => await getTheme())
+  ipcMain.handle('save-theme', async (_, theme: string) => await saveTheme(theme))
+
+  // Export connections: open save dialog and write JSON
+  ipcMain.handle('export-connections', async () => {
+    const mainWindow = BrowserWindow.getAllWindows()[0]
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      defaultPath: 'connections.json',
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    })
+    if (canceled || !filePath) return false
+    const connections = await getConnections()
+    await fs.writeFile(filePath, JSON.stringify(connections, null, 2), 'utf-8')
+    return true
+  })
+
+  // Import connections: open file dialog, read and validate JSON
+  ipcMain.handle('import-connections', async () => {
+    const mainWindow = BrowserWindow.getAllWindows()[0]
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      properties: ['openFile']
+    })
+    if (canceled || filePaths.length === 0) return null
+    const data = await fs.readFile(filePaths[0], 'utf-8')
+    const parsed = JSON.parse(data)
+    if (!Array.isArray(parsed)) throw new Error('Invalid format: expected an array of connections')
+    return parsed as S3Connection[]
   })
 
   createWindow()

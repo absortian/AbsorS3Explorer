@@ -1,8 +1,8 @@
 import { useTransferQueue } from '../context/TransferQueueContext'
-import { CheckCircle, XCircle, Loader2, ArrowUpCircle, ArrowDownCircle } from 'lucide-react'
+import { CheckCircle, XCircle, Loader2, ArrowUpCircle, ArrowDownCircle, RotateCcw } from 'lucide-react'
 
 export default function TransferQueueBar() {
-  const { jobs, clearCompleted } = useTransferQueue()
+  const { jobs, clearCompleted, retryJob } = useTransferQueue()
 
   if (jobs.length === 0) return null
 
@@ -42,7 +42,7 @@ export default function TransferQueueBar() {
               {job.status === 'uploading' && <><Loader2 size={14} className="spin" /> Uploading...</>}
               {job.status === 'downloading' && <><Loader2 size={14} className="spin" /> Downloading...</>}
               {job.status === 'done' && <CheckCircle size={14} color="#10b981" />}
-              {job.status === 'error' && <span title={job.error}><XCircle size={14} color="#ef4444" /></span>}
+              {job.status === 'error' && <span title={job.error} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><XCircle size={14} color="#ef4444" /><button onClick={() => retryJob(job.id)} className="btn-retry" title="Retry"><RotateCcw size={12} /></button></span>}
             </div>
           </div>
         ))}
@@ -122,6 +122,20 @@ export default function TransferQueueBar() {
         .badge-pending { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
         .spin { animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
+        .btn-retry {
+          background: rgba(239, 68, 68, 0.15);
+          border: none;
+          color: #ef4444;
+          cursor: pointer;
+          padding: 2px 4px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          transition: all 0.2s;
+        }
+        .btn-retry:hover {
+          background: rgba(239, 68, 68, 0.3);
+        }
       `}</style>
     </div>
   )

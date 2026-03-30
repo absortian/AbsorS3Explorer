@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, HardDrive, Trash2, X, FolderPlus, Folder, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, HardDrive, Trash2, X, FolderPlus, Folder, ChevronDown, ChevronRight, Pencil } from 'lucide-react'
 import { S3Connection } from '../../../shared/types'
 
 export default function ConnectionsSidebar({ isOpen, onSelectConnection }: { isOpen: boolean, onSelectConnection: (conn: S3Connection) => void }) {
   const [connections, setConnections] = useState<S3Connection[]>([])
   const [showModal, setShowModal] = useState(false)
+  const [editingConnection, setEditingConnection] = useState<S3Connection | null>(null)
   const [showFolderModal, setShowFolderModal] = useState(false)
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [draggedId, setDraggedId] = useState<string | null>(null)
@@ -18,14 +19,31 @@ export default function ConnectionsSidebar({ isOpen, onSelectConnection }: { isO
   if (!isOpen) return null
 
   const handleSaveConnection = async (newConn: Omit<S3Connection, 'id'>) => {
-    const conn: S3Connection = {
-      ...newConn,
-      id: crypto.randomUUID()
+    if (editingConnection) {
+      // Update existing connection
+      const updated = connections.map(c =>
+        c.id === editingConnection.id ? { ...newConn, id: editingConnection.id } : c
+      )
+      setConnections(updated)
+      await window.api.saveConnections(updated)
+      setEditingConnection(null)
+      setShowModal(false)
+    } else {
+      const conn: S3Connection = {
+        ...newConn,
+        id: crypto.randomUUID()
+      }
+      const updated = [...connections, conn]
+      setConnections(updated)
+      await window.api.saveConnections(updated)
+      setShowModal(false)
     }
-    const updated = [...connections, conn]
-    setConnections(updated)
-    await window.api.saveConnections(updated)
-    setShowModal(false)
+  }
+
+  const handleEditConnection = (conn: S3Connection, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditingConnection(conn)
+    setShowModal(true)
   }
 
   const handleSaveFolder = async (name: string) => {
@@ -144,6 +162,9 @@ export default function ConnectionsSidebar({ isOpen, onSelectConnection }: { isO
           <span style={{ fontSize: '0.9rem' }}>{conn.name}</span>
         </div>
         <div className="actions-group" style={{ display: 'flex', gap: '4px', opacity: 0.7 }}>
+          <button className="btn-icon" onClick={(e) => handleEditConnection(conn, e)} style={{ padding: '4px' }}>
+            <Pencil size={14} />
+          </button>
           <button className="btn-icon" onClick={(e) => handleDelete(conn.id, e)} style={{ padding: '4px' }}>
             <Trash2 size={14} />
           </button>
@@ -274,7 +295,8 @@ export default function ConnectionsSidebar({ isOpen, onSelectConnection }: { isO
       {showModal && (
         <ConnectionModal 
           folders={folders}
-          onClose={() => setShowModal(false)} 
+          editingConnection={editingConnection}
+          onClose={() => { setShowModal(false); setEditingConnection(null) }} 
           onSave={handleSaveConnection} 
         />
       )}
@@ -288,14 +310,14 @@ export default function ConnectionsSidebar({ isOpen, onSelectConnection }: { isO
   )
 }
 
-function ConnectionModal({ folders, onClose, onSave }: { folders: S3Connection[], onClose: () => void, onSave: (conn: any) => Promise<void> }) {
-  const [name, setName] = useState('')
-  const [endpoint, setEndpoint] = useState('')
-  const [accessKeyId, setAccessKeyId] = useState('')
-  const [secretAccessKey, setSecretAccessKey] = useState('')
-  const [bucket, setBucket] = useState('')
-  const [region, setRegion] = useState('us-east-1')
-  const [parentId, setParentId] = useState<string>('')
+function ConnectionModal({ folders, editingConnection, onClose, onSave }: { folders: S3Connection[], editingConnection: S3Connection | null, onClose: () => void, onSave: (conn: any) => Promise<void> }) {
+  const [name, setName] = useState(editingConnection?.name || '')
+  const [endpoint, setEndpoint] = useState(editingConnection?.endpoint || '')
+  const [accessKeyId, setAccessKeyId] = useState(editingConnection?.accessKeyId || '')
+  const [secretAccessKey, setSecretAccessKey] = useState(editingConnection?.secretAccessKey || '')
+  const [bucket, setBucket] = useState(editingConnection?.bucket || '')
+  const [region, setRegion] = useState(editingConnection?.region || 'us-east-1')
+  const [parentId, setParentId] = useState<string>(editingConnection?.parentId || '')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -309,7 +331,7 @@ function ConnectionModal({ folders, onClose, onSave }: { folders: S3Connection[]
     }}>
       <div className="glass-panel animate-fade-in" style={{ padding: '24px', width: '400px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>New S3 Connection</h3>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>{editingConnection ? 'Edit Connection' : 'New S3 Connection'}</h3>
           <button className="btn-icon" onClick={onClose}><X size={20} /></button>
         </div>
         
@@ -348,7 +370,7 @@ function ConnectionModal({ folders, onClose, onSave }: { folders: S3Connection[]
           
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
             <button type="button" onClick={onClose} style={{ ...btnStyle, background: 'transparent', border: '1px solid var(--border-light)' }}>Cancel</button>
-            <button type="submit" style={{ ...btnStyle, background: 'var(--accent-primary)', color: 'white' }}>Save Connection</button>
+            <button type="submit" style={{ ...btnStyle, background: 'var(--accent-primary)', color: 'white' }}>{editingConnection ? 'Update' : 'Save Connection'}</button>
           </div>
         </form>
       </div>

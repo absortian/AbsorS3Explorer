@@ -1,10 +1,11 @@
-import { useState } from 'react'
-import { Menu } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Menu, Settings } from 'lucide-react'
 import './assets/main.css'
 import ConnectionsSidebar from './components/ConnectionsSidebar'
 import S3Explorer from './components/S3Explorer'
 import LocalExplorer from './components/LocalExplorer'
 import TransferQueueBar from './components/TransferQueueBar'
+import SettingsPanel from './components/SettingsPanel'
 import { S3Connection } from '../../shared/types'
 import logo from './assets/icon.png'
 
@@ -12,6 +13,19 @@ function App(): React.JSX.Element {
   const [activeConnection, setActiveConnection] = useState<S3Connection | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [s3Location, setS3Location] = useState({ bucket: '', prefix: '' })
+  const [localCurrentPath, setLocalCurrentPath] = useState('')
+  const [theme, setTheme] = useState('dark')
+  const [showSettings, setShowSettings] = useState(false)
+  const [connectionsKey, setConnectionsKey] = useState(0)
+
+  useEffect(() => {
+    window.api.getTheme().then((saved) => {
+      setTheme(saved)
+      if (saved !== 'dark') {
+        document.documentElement.dataset.theme = saved
+      }
+    })
+  }, [])
 
   const handleSelectConnection = (conn: S3Connection) => {
     setActiveConnection(conn)
@@ -21,7 +35,7 @@ function App(): React.JSX.Element {
   return (
     <div className={`app-layout ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
       {/* Sidebar for Connections */}
-      <ConnectionsSidebar isOpen={sidebarOpen} onSelectConnection={handleSelectConnection} />
+      <ConnectionsSidebar key={connectionsKey} isOpen={sidebarOpen} onSelectConnection={handleSelectConnection} />
 
       {/* Main Content Area */}
       <main className="main-content">
@@ -39,6 +53,9 @@ function App(): React.JSX.Element {
                </>
              )}
           </div>
+          <button className="btn-icon" onClick={() => setShowSettings(true)} title="Ajustes">
+            <Settings size={20} />
+          </button>
         </header>
 
         <section className="content-area animate-fade-in" style={{ padding: activeConnection ? 0 : '24px' }}>
@@ -53,12 +70,13 @@ function App(): React.JSX.Element {
           ) : (
             <div className="split-view" style={{ display: 'flex', height: '100%', width: '100%' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <LocalExplorer activeConnection={activeConnection} s3Location={s3Location} />
+                <LocalExplorer activeConnection={activeConnection} s3Location={s3Location} onPathChange={setLocalCurrentPath} />
               </div>
               <div style={{ flex: 1, minWidth: 0, borderLeft: '1px solid var(--border-light)' }}>
                 <S3Explorer 
                   key={activeConnection.id} 
                   connection={activeConnection} 
+                  localCurrentPath={localCurrentPath}
                   onLocationChange={(bucket, prefix) => setS3Location({ bucket, prefix })}
                 />
               </div>
@@ -69,6 +87,16 @@ function App(): React.JSX.Element {
       
       {/* Bottom Queue Bar */}
       <TransferQueueBar />
+
+      {/* Settings Panel */}
+      {showSettings && (
+        <SettingsPanel
+          theme={theme}
+          onThemeChange={setTheme}
+          onClose={() => setShowSettings(false)}
+          onConnectionsImported={() => setConnectionsKey((k) => k + 1)}
+        />
+      )}
     </div>
   )
 }
