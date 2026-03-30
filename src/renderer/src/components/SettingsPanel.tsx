@@ -1,6 +1,14 @@
-import { useState } from 'react'
-import { X, Sun, Moon, Download, Upload, AlertTriangle } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { X, Sun, Moon, Download, Upload, AlertTriangle, RefreshCw, ExternalLink, RotateCcw } from 'lucide-react'
 import { S3Connection } from '../../../shared/types'
+
+interface UpdateStatus {
+  status: 'idle' | 'checking' | 'available' | 'up-to-date' | 'downloading' | 'downloaded' | 'error'
+  version?: string
+  percent?: number
+  error?: string
+  releasesUrl?: string
+}
 
 interface SettingsPanelProps {
   theme: string
@@ -12,6 +20,48 @@ interface SettingsPanelProps {
 export default function SettingsPanel({ theme, onThemeChange, onClose, onConnectionsImported }: SettingsPanelProps) {
   const [importError, setImportError] = useState<string | null>(null)
   const [exportSuccess, setExportSuccess] = useState(false)
+  const [appVersion, setAppVersion] = useState<string>('')
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ status: 'idle' })
+
+  useEffect(() => {
+    window.api.getAppVersion().then(setAppVersion)
+
+    const removeListener = window.api.onUpdateStatus((_event, data) => {
+      const d = data as UpdateStatus
+      setUpdateStatus((prev) => ({ ...prev, ...d }))
+    })
+
+    return removeListener
+  }, [])
+
+  const handleCheckUpdates = useCallback(async () => {
+    setUpdateStatus({ status: 'checking' })
+    try {
+      await window.api.checkForUpdates()
+    } catch {
+      setUpdateStatus({
+        status: 'error',
+        error: 'No se pudo comprobar actualizaciones.',
+        releasesUrl: 'https://github.com/absortian/AbsorS3Explorer/releases'
+      })
+    }
+  }, [])
+
+  const handleDownloadUpdate = useCallback(async () => {
+    try {
+      await window.api.downloadUpdate()
+    } catch {
+      setUpdateStatus({
+        status: 'error',
+        error: 'Error al descargar la actualización.',
+        releasesUrl: 'https://github.com/absortian/AbsorS3Explorer/releases'
+      })
+    }
+  }, [])
+
+  const handleInstallUpdate = useCallback(() => {
+    window.api.installUpdate()
+  }, [])
 
   const handleThemeChange = (newTheme: string) => {
     onThemeChange(newTheme)
@@ -45,6 +95,95 @@ export default function SettingsPanel({ theme, onThemeChange, onClose, onConnect
           <button className="btn-icon" onClick={onClose}>
             <X size={18} />
           </button>
+        </div>
+
+        {/* Updates section */}
+        <div className="settings-section">
+          <h3>Actualizaciones</h3>
+          <div className="settings-row">
+            <div>
+              <div className="settings-row-label">Versión actual</div>
+              <div className="settings-row-hint">v{appVersion}</div>
+            </div>
+          </div>
+
+          {updateStatus.status === 'idle' && (
+            <button className="settings-btn" onClick={handleCheckUpdates}>
+              <RefreshCw size={16} /> Comprobar actualizaciones
+            </button>
+          )}
+
+          {updateStatus.status === 'checking' && (
+            <button className="settings-btn" disabled>
+              <RefreshCw size={16} className="spin" /> Comprobando…
+            </button>
+          )}
+
+          {updateStatus.status === 'up-to-date' && (
+            <>
+              <div className="update-message update-success">
+                Ya tienes la última versión.
+              </div>
+              <button className="settings-btn" onClick={handleCheckUpdates}>
+                <RefreshCw size={16} /> Comprobar de nuevo
+              </button>
+            </>
+          )}
+
+          {updateStatus.status === 'available' && (
+            <>
+              <div className="update-message update-info">
+                Nueva versión disponible: <strong>v{updateStatus.version}</strong>
+              </div>
+              <button className="settings-btn" onClick={handleDownloadUpdate}>
+                <Download size={16} /> Descargar actualización
+              </button>
+            </>
+          )}
+
+          {updateStatus.status === 'downloading' && (
+            <>
+              <div className="update-message update-info">
+                Descargando… {updateStatus.percent ?? 0}%
+              </div>
+              <div className="update-progress-track">
+                <div
+                  className="update-progress-bar"
+                  style={{ width: `${updateStatus.percent ?? 0}%` }}
+                />
+              </div>
+            </>
+          )}
+
+          {updateStatus.status === 'downloaded' && (
+            <>
+              <div className="update-message update-success">
+                Actualización descargada. Reinicia para aplicar.
+              </div>
+              <button className="settings-btn" onClick={handleInstallUpdate}>
+                <RotateCcw size={16} /> Reiniciar y actualizar
+              </button>
+            </>
+          )}
+
+          {updateStatus.status === 'error' && (
+            <>
+              <div className="update-message update-error">
+                {updateStatus.error}
+              </div>
+              {updateStatus.releasesUrl && (
+                <button
+                  className="settings-btn"
+                  onClick={() => window.open(updateStatus.releasesUrl, '_blank')}
+                >
+                  <ExternalLink size={16} /> Descargar desde GitHub
+                </button>
+              )}
+              <button className="settings-btn" onClick={handleCheckUpdates}>
+                <RefreshCw size={16} /> Reintentar
+              </button>
+            </>
+          )}
         </div>
 
         {/* Theme section */}

@@ -21,7 +21,15 @@ const api = {
   getTheme: () => ipcRenderer.invoke('get-theme'),
   saveTheme: (theme: string) => ipcRenderer.invoke('save-theme', theme),
   exportConnections: () => ipcRenderer.invoke('export-connections'),
-  importConnections: () => ipcRenderer.invoke('import-connections')
+  importConnections: () => ipcRenderer.invoke('import-connections'),
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  onUpdateStatus: (callback: (_event: unknown, data: unknown) => void) => {
+    ipcRenderer.on('update-status', callback)
+    return () => ipcRenderer.removeListener('update-status', callback)
+  }
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

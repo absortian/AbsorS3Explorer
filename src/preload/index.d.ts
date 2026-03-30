@@ -1,6 +1,15 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import { S3Connection } from '../shared/types'
 
+interface UpdateStatusEvent {
+  status: 'checking' | 'available' | 'up-to-date' | 'downloading' | 'downloaded' | 'error'
+  version?: string
+  releaseDate?: string
+  percent?: number
+  error?: string
+  releasesUrl?: string
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI
@@ -23,6 +32,11 @@ declare global {
       saveTheme: (theme: string) => Promise<void>
       exportConnections: () => Promise<boolean>
       importConnections: () => Promise<S3Connection[] | null>
+      getAppVersion: () => Promise<string>
+      checkForUpdates: () => Promise<void>
+      downloadUpdate: () => Promise<void>
+      installUpdate: () => void
+      onUpdateStatus: (callback: (_event: unknown, data: UpdateStatusEvent) => void) => () => void
     }
   }
 }

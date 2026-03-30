@@ -6,6 +6,7 @@ import { getConnections, saveConnections, getTheme, saveTheme } from './store'
 import { listBuckets, listObjects, uploadFile, downloadFile, createFolder, deleteObject, deleteFolder } from './s3'
 import { S3Connection } from '../shared/types'
 import { getLocalHome, listLocalDir, createLocalDir, deleteLocalItem } from './localFs'
+import { initUpdater, checkForUpdates, downloadUpdate, quitAndInstall } from './updater'
 import * as fs from 'fs/promises'
 
 
@@ -89,6 +90,12 @@ app.whenReady().then(() => {
   ipcMain.handle('get-theme', async () => await getTheme())
   ipcMain.handle('save-theme', async (_, theme: string) => await saveTheme(theme))
 
+  // Update IPC handlers
+  ipcMain.handle('get-app-version', () => app.getVersion())
+  ipcMain.handle('check-for-updates', async () => await checkForUpdates())
+  ipcMain.handle('download-update', async () => await downloadUpdate())
+  ipcMain.handle('install-update', () => quitAndInstall())
+
   // Export connections: open save dialog and write JSON
   ipcMain.handle('export-connections', async () => {
     const mainWindow = BrowserWindow.getAllWindows()[0]
@@ -116,6 +123,7 @@ app.whenReady().then(() => {
     return parsed as S3Connection[]
   })
 
+  initUpdater()
   createWindow()
 
   app.on('activate', function () {
