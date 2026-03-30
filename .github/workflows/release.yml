@@ -49,7 +49,7 @@ jobs:
           draft: false
           prerelease: false
           body: |
-            ## Absor S3 Explorer — Primera versión 🚀
+            ## Absor S3 Explorer ${{ github.ref_name }} 🚀
 
             Explorador de archivos dual-panel para transferir archivos entre el sistema de archivos local y almacenamiento compatible con S3 (AWS S3, MinIO, DigitalOcean Spaces, etc.).
 
