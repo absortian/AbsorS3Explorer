@@ -20,6 +20,7 @@ nsis:
   createDesktopShortcut: always
 mac:
   icon: build/icon.png
+  artifactName: ${name}-${version}-${arch}.${ext}
   target:
     - target: dmg
       arch:
