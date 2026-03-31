@@ -24,9 +24,11 @@ mac:
     - target: dmg
       arch:
         - arm64
+        - x64
     - target: zip
       arch:
         - arm64
+        - x64
   minimumSystemVersion: '11.0'
   hardenedRuntime: false
   gatekeeperAssess: false
@@ -44,9 +46,13 @@ linux:
   target:
     - AppImage
     - deb
+    - rpm
+    - tar.gz
   maintainer: absortian
   category: Utility
 appImage:
+  artifactName: ${name}-${version}.${ext}
+rpm:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
