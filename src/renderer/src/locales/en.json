@@ -23,6 +23,7 @@
     "retry": "Retry",
     "errorCheckUpdates": "Could not check for updates.",
     "errorDownloadUpdate": "Error downloading the update.",
+    "errorCodeSign": "The automatic update could not be applied because the app is not code-signed. Please download the new version manually from GitHub.",
     "appearance": "Appearance",
     "theme": "Theme",
     "themeHint": "Switch between light and dark mode",

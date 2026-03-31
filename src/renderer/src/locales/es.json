@@ -23,6 +23,7 @@
     "retry": "Reintentar",
     "errorCheckUpdates": "No se pudo comprobar actualizaciones.",
     "errorDownloadUpdate": "Error al descargar la actualización.",
+    "errorCodeSign": "No se pudo aplicar la actualización automática porque la app no está firmada. Por favor, descarga la nueva versión manualmente desde GitHub.",
     "appearance": "Apariencia",
     "theme": "Tema",
     "themeHint": "Cambia entre modo claro y oscuro",

@@ -35,10 +35,14 @@ export function initUpdater(): void {
   })
 
   autoUpdater.on('error', (err: Error) => {
+    const isCodeSignError =
+      /code.?sign|signature|not valid|no firmado/i.test(err.message)
+
     sendToRenderer('update-status', {
       status: 'error',
       error: err.message,
-      releasesUrl: RELEASES_URL
+      releasesUrl: RELEASES_URL,
+      isCodeSignError
     })
   })
 }

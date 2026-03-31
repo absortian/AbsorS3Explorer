@@ -9,6 +9,7 @@ interface UpdateStatus {
   percent?: number
   error?: string
   releasesUrl?: string
+  isCodeSignError?: boolean
 }
 
 interface SettingsPanelProps {
@@ -174,7 +175,9 @@ export default function SettingsPanel({ theme, onThemeChange, onClose, onConnect
           {updateStatus.status === 'error' && (
             <>
               <div className="update-message update-error">
-                {updateStatus.error}
+                {updateStatus.isCodeSignError
+                  ? t('settings.errorCodeSign')
+                  : updateStatus.error}
               </div>
               {updateStatus.releasesUrl && (
                 <button
