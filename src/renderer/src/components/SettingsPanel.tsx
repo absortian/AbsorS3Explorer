@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { X, Sun, Moon, Download, Upload, AlertTriangle, RefreshCw, ExternalLink, RotateCcw } from 'lucide-react'
 import { S3Connection } from '../../../shared/types'
 
@@ -18,6 +19,7 @@ interface SettingsPanelProps {
 }
 
 export default function SettingsPanel({ theme, onThemeChange, onClose, onConnectionsImported }: SettingsPanelProps) {
+  const { t, i18n } = useTranslation()
   const [importError, setImportError] = useState<string | null>(null)
   const [exportSuccess, setExportSuccess] = useState(false)
   const [appVersion, setAppVersion] = useState<string>('')
@@ -41,7 +43,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose, onConnect
     } catch {
       setUpdateStatus({
         status: 'error',
-        error: 'No se pudo comprobar actualizaciones.',
+        error: t('settings.errorCheckUpdates'),
         releasesUrl: 'https://github.com/absortian/AbsorS3Explorer/releases'
       })
     }
@@ -53,7 +55,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose, onConnect
     } catch {
       setUpdateStatus({
         status: 'error',
-        error: 'Error al descargar la actualización.',
+        error: t('settings.errorDownloadUpdate'),
         releasesUrl: 'https://github.com/absortian/AbsorS3Explorer/releases'
       })
     }
@@ -83,15 +85,20 @@ export default function SettingsPanel({ theme, onThemeChange, onClose, onConnect
       await window.api.saveConnections(imported)
       onConnectionsImported(imported)
     } catch {
-      setImportError('Error al importar: el archivo no tiene un formato válido.')
+      setImportError(t('settings.importError'))
     }
+  }
+
+  const handleLanguageChange = (lang: string) => {
+    i18n.changeLanguage(lang)
+    window.api.saveLanguage(lang)
   }
 
   return (
     <div className="settings-overlay" onClick={onClose}>
       <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
         <div className="settings-panel-header">
-          <h2>Ajustes</h2>
+          <h2>{t('settings.title')}</h2>
           <button className="btn-icon" onClick={onClose}>
             <X size={18} />
           </button>
@@ -99,44 +106,42 @@ export default function SettingsPanel({ theme, onThemeChange, onClose, onConnect
 
         {/* Updates section */}
         <div className="settings-section">
-          <h3>Actualizaciones</h3>
+          <h3>{t('settings.updates')}</h3>
           <div className="settings-row">
             <div>
-              <div className="settings-row-label">Versión actual</div>
+              <div className="settings-row-label">{t('settings.currentVersion')}</div>
               <div className="settings-row-hint">v{appVersion}</div>
             </div>
           </div>
 
           {updateStatus.status === 'idle' && (
             <button className="settings-btn" onClick={handleCheckUpdates}>
-              <RefreshCw size={16} /> Comprobar actualizaciones
+              <RefreshCw size={16} /> {t('settings.checkUpdates')}
             </button>
           )}
 
           {updateStatus.status === 'checking' && (
             <button className="settings-btn" disabled>
-              <RefreshCw size={16} className="spin" /> Comprobando…
+              <RefreshCw size={16} className="spin" /> {t('settings.checking')}
             </button>
           )}
 
           {updateStatus.status === 'up-to-date' && (
             <>
               <div className="update-message update-success">
-                Ya tienes la última versión.
+                {t('settings.upToDate')}
               </div>
               <button className="settings-btn" onClick={handleCheckUpdates}>
-                <RefreshCw size={16} /> Comprobar de nuevo
+                <RefreshCw size={16} /> {t('settings.checkAgain')}
               </button>
             </>
           )}
 
           {updateStatus.status === 'available' && (
             <>
-              <div className="update-message update-info">
-                Nueva versión disponible: <strong>v{updateStatus.version}</strong>
-              </div>
+              <div className="update-message update-info" dangerouslySetInnerHTML={{ __html: t('settings.newVersion', { version: updateStatus.version }) }} />
               <button className="settings-btn" onClick={handleDownloadUpdate}>
-                <Download size={16} /> Descargar actualización
+                <Download size={16} /> {t('settings.downloadUpdate')}
               </button>
             </>
           )}
@@ -144,7 +149,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose, onConnect
           {updateStatus.status === 'downloading' && (
             <>
               <div className="update-message update-info">
-                Descargando… {updateStatus.percent ?? 0}%
+                {t('settings.downloading', { percent: updateStatus.percent ?? 0 })}
               </div>
               <div className="update-progress-track">
                 <div
@@ -158,10 +163,10 @@ export default function SettingsPanel({ theme, onThemeChange, onClose, onConnect
           {updateStatus.status === 'downloaded' && (
             <>
               <div className="update-message update-success">
-                Actualización descargada. Reinicia para aplicar.
+                {t('settings.downloaded')}
               </div>
               <button className="settings-btn" onClick={handleInstallUpdate}>
-                <RotateCcw size={16} /> Reiniciar y actualizar
+                <RotateCcw size={16} /> {t('settings.restartAndUpdate')}
               </button>
             </>
           )}
@@ -176,11 +181,11 @@ export default function SettingsPanel({ theme, onThemeChange, onClose, onConnect
                   className="settings-btn"
                   onClick={() => window.open(updateStatus.releasesUrl, '_blank')}
                 >
-                  <ExternalLink size={16} /> Descargar desde GitHub
+                  <ExternalLink size={16} /> {t('settings.downloadFromGitHub')}
                 </button>
               )}
               <button className="settings-btn" onClick={handleCheckUpdates}>
-                <RefreshCw size={16} /> Reintentar
+                <RefreshCw size={16} /> {t('settings.retry')}
               </button>
             </>
           )}
@@ -188,24 +193,49 @@ export default function SettingsPanel({ theme, onThemeChange, onClose, onConnect
 
         {/* Theme section */}
         <div className="settings-section">
-          <h3>Apariencia</h3>
+          <h3>{t('settings.appearance')}</h3>
           <div className="settings-row">
             <div>
-              <div className="settings-row-label">Tema</div>
-              <div className="settings-row-hint">Cambia entre modo claro y oscuro</div>
+              <div className="settings-row-label">{t('settings.theme')}</div>
+              <div className="settings-row-hint">{t('settings.themeHint')}</div>
             </div>
             <div className="theme-toggle">
               <button
                 className={theme === 'dark' ? 'active' : ''}
                 onClick={() => handleThemeChange('dark')}
               >
-                <Moon size={14} /> Oscuro
+                <Moon size={14} /> {t('settings.dark')}
               </button>
               <button
                 className={theme === 'light' ? 'active' : ''}
                 onClick={() => handleThemeChange('light')}
               >
-                <Sun size={14} /> Claro
+                <Sun size={14} /> {t('settings.light')}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Language section */}
+        <div className="settings-section">
+          <h3>{t('settings.language')}</h3>
+          <div className="settings-row">
+            <div>
+              <div className="settings-row-label">{t('settings.languageLabel')}</div>
+              <div className="settings-row-hint">{t('settings.languageHint')}</div>
+            </div>
+            <div className="theme-toggle">
+              <button
+                className={i18n.language === 'en' ? 'active' : ''}
+                onClick={() => handleLanguageChange('en')}
+              >
+                English
+              </button>
+              <button
+                className={i18n.language === 'es' ? 'active' : ''}
+                onClick={() => handleLanguageChange('es')}
+              >
+                Español
               </button>
             </div>
           </div>
@@ -213,19 +243,19 @@ export default function SettingsPanel({ theme, onThemeChange, onClose, onConnect
 
         {/* Connections import/export section */}
         <div className="settings-section">
-          <h3>Conexiones</h3>
+          <h3>{t('settings.connections')}</h3>
 
           <button className="settings-btn" onClick={handleExport}>
-            <Download size={16} /> Exportar conexiones
+            <Download size={16} /> {t('settings.exportConnections')}
           </button>
           {exportSuccess && (
             <div style={{ fontSize: '0.78rem', color: '#22c55e', marginTop: '6px', textAlign: 'center' }}>
-              Conexiones exportadas correctamente.
+              {t('settings.exportSuccess')}
             </div>
           )}
 
           <button className="settings-btn" onClick={handleImport}>
-            <Upload size={16} /> Importar conexiones
+            <Upload size={16} /> {t('settings.importConnections')}
           </button>
           {importError && (
             <div style={{ fontSize: '0.78rem', color: '#ef4444', marginTop: '6px', textAlign: 'center' }}>
@@ -236,9 +266,7 @@ export default function SettingsPanel({ theme, onThemeChange, onClose, onConnect
           <div className="settings-warning">
             <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: '1px', color: '#eab308' }} />
             <span>
-              El archivo exportado contiene tus claves de acceso (Access Key / Secret Key).
-              Guárdalo en un lugar seguro.
-              Al importar, las conexiones actuales serán reemplazadas.
+              {t('settings.exportWarning')}
             </span>
           </div>
         </div>

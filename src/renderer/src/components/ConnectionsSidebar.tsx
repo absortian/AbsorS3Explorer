@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Plus, HardDrive, Trash2, X, FolderPlus, Folder, ChevronDown, ChevronRight, Pencil } from 'lucide-react'
 import { S3Connection } from '../../../shared/types'
 
 export default function ConnectionsSidebar({ isOpen, onSelectConnection }: { isOpen: boolean, onSelectConnection: (conn: S3Connection) => void }) {
+  const { t } = useTranslation()
   const [connections, setConnections] = useState<S3Connection[]>([])
   const [showModal, setShowModal] = useState(false)
   const [editingConnection, setEditingConnection] = useState<S3Connection | null>(null)
@@ -244,12 +246,12 @@ export default function ConnectionsSidebar({ isOpen, onSelectConnection }: { isO
     <>
       <aside className="sidebar">
         <div className="sidebar-header" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
-          <span className="sidebar-title">Connections</span>
+          <span className="sidebar-title">{t('sidebar.title')}</span>
           <div style={{ WebkitAppRegion: 'no-drag', display: 'flex', gap: '4px' } as React.CSSProperties}>
-            <button className="btn-icon" title="Add Folder" onClick={() => setShowFolderModal(true)}>
+            <button className="btn-icon" title={t('sidebar.addFolder')} onClick={() => setShowFolderModal(true)}>
               <FolderPlus size={18} />
             </button>
-            <button className="btn-icon" title="Add Connection" onClick={() => setShowModal(true)}>
+            <button className="btn-icon" title={t('sidebar.addConnection')} onClick={() => setShowModal(true)}>
               <Plus size={18} />
             </button>
           </div>
@@ -279,8 +281,8 @@ export default function ConnectionsSidebar({ isOpen, onSelectConnection }: { isO
           {connections.length === 0 ? (
             <div className="empty-state" style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
               <HardDrive size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
-              <p style={{ fontSize: '0.9rem' }}>No connections yet.</p>
-              <p style={{ fontSize: '0.8rem', marginTop: '6px' }}>Click + to add a new S3 target.</p>
+              <p style={{ fontSize: '0.9rem' }}>{t('sidebar.noConnections')}</p>
+              <p style={{ fontSize: '0.8rem', marginTop: '6px' }}>{t('sidebar.noConnectionsHint')}</p>
             </div>
           ) : (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, gap: '4px', display: 'flex', flexDirection: 'column' }}>
@@ -311,6 +313,7 @@ export default function ConnectionsSidebar({ isOpen, onSelectConnection }: { isO
 }
 
 function ConnectionModal({ folders, editingConnection, onClose, onSave }: { folders: S3Connection[], editingConnection: S3Connection | null, onClose: () => void, onSave: (conn: any) => Promise<void> }) {
+  const { t } = useTranslation()
   const [name, setName] = useState(editingConnection?.name || '')
   const [endpoint, setEndpoint] = useState(editingConnection?.endpoint || '')
   const [accessKeyId, setAccessKeyId] = useState(editingConnection?.accessKeyId || '')
@@ -331,46 +334,46 @@ function ConnectionModal({ folders, editingConnection, onClose, onSave }: { fold
     }}>
       <div className="glass-panel animate-fade-in" style={{ padding: '24px', width: '400px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>{editingConnection ? 'Edit Connection' : 'New S3 Connection'}</h3>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>{editingConnection ? t('sidebar.editConnection') : t('sidebar.newConnection')}</h3>
           <button className="btn-icon" onClick={onClose}><X size={20} /></button>
         </div>
         
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Connection Name</label>
-            <input required type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Production Assets" style={inputStyle} />
+            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('sidebar.connectionName')}</label>
+            <input required type="text" value={name} onChange={e => setName(e.target.value)} placeholder={t('sidebar.connectionNamePlaceholder')} style={inputStyle} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Folder (Optional)</label>
+            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('sidebar.folder')}</label>
             <select value={parentId} onChange={e => setParentId(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-              <option value="" style={{ background: '#222', color: 'white' }}>None</option>
+              <option value="" style={{ background: '#222', color: 'white' }}>{t('sidebar.folderNone')}</option>
               {folders.map(f => <option key={f.id} value={f.id} style={{ background: '#222', color: 'white' }}>{f.name}</option>)}
             </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Endpoint URL</label>
+            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('sidebar.endpointUrl')}</label>
             <input required type="url" value={endpoint} onChange={e => setEndpoint(e.target.value)} placeholder="https://..." style={inputStyle} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-             <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Region</label>
+             <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('sidebar.region')}</label>
             <input type="text" value={region} onChange={e => setRegion(e.target.value)} placeholder="us-east-1" style={inputStyle} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Access Key ID</label>
+            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('sidebar.accessKeyId')}</label>
             <input required type="text" value={accessKeyId} onChange={e => setAccessKeyId(e.target.value)} style={inputStyle} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Secret Access Key</label>
+            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('sidebar.secretAccessKey')}</label>
             <input required type="password" value={secretAccessKey} onChange={e => setSecretAccessKey(e.target.value)} style={inputStyle} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Default Bucket (Optional)</label>
+            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('sidebar.defaultBucket')}</label>
             <input type="text" value={bucket} onChange={e => setBucket(e.target.value)} style={inputStyle} />
           </div>
           
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-            <button type="button" onClick={onClose} style={{ ...btnStyle, background: 'transparent', border: '1px solid var(--border-light)' }}>Cancel</button>
-            <button type="submit" style={{ ...btnStyle, background: 'var(--accent-primary)', color: 'white' }}>{editingConnection ? 'Update' : 'Save Connection'}</button>
+            <button type="button" onClick={onClose} style={{ ...btnStyle, background: 'transparent', border: '1px solid var(--border-light)' }}>{t('sidebar.cancel')}</button>
+            <button type="submit" style={{ ...btnStyle, background: 'var(--accent-primary)', color: 'white' }}>{editingConnection ? t('sidebar.update') : t('sidebar.saveConnection')}</button>
           </div>
         </form>
       </div>
@@ -379,6 +382,7 @@ function ConnectionModal({ folders, editingConnection, onClose, onSave }: { fold
 }
 
 function FolderModal({ onClose, onSave }: { onClose: () => void, onSave: (name: string) => Promise<void> }) {
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -391,17 +395,17 @@ function FolderModal({ onClose, onSave }: { onClose: () => void, onSave: (name: 
     }}>
       <div className="glass-panel animate-fade-in" style={{ padding: '24px', width: '300px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>New Folder</h3>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>{t('sidebar.newFolder')}</h3>
           <button className="btn-icon" onClick={onClose}><X size={20} /></button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Folder Name</label>
-            <input required autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Work" style={inputStyle} />
+            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('sidebar.folderName')}</label>
+            <input required autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder={t('sidebar.folderNamePlaceholder')} style={inputStyle} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-            <button type="button" onClick={onClose} style={{ ...btnStyle, background: 'transparent', border: '1px solid var(--border-light)' }}>Cancel</button>
-            <button type="submit" style={{ ...btnStyle, background: 'var(--accent-primary)', color: 'white' }}>Save</button>
+            <button type="button" onClick={onClose} style={{ ...btnStyle, background: 'transparent', border: '1px solid var(--border-light)' }}>{t('sidebar.cancel')}</button>
+            <button type="submit" style={{ ...btnStyle, background: 'var(--accent-primary)', color: 'white' }}>{t('sidebar.save')}</button>
           </div>
         </form>
       </div>

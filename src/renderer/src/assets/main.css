@@ -178,6 +178,33 @@ body, html, #root {
   background: var(--bg-base);
 }
 
+.split-divider {
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  flex-shrink: 0;
+  z-index: 5;
+  transition: background var(--transition-fast);
+}
+
+.split-divider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--border-light);
+  transform: translateX(-50%);
+  transition: width var(--transition-fast), background var(--transition-fast);
+}
+
+.split-divider:hover::after {
+  width: 3px;
+  background: var(--accent-primary);
+}
+
 /* ── Settings Panel ── */
 .settings-overlay {
   position: fixed;

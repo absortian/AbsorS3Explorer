@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { getConnections, saveConnections, getTheme, saveTheme } from './store'
+import { getConnections, saveConnections, getTheme, saveTheme, getLanguage, saveLanguage } from './store'
 import { listBuckets, listObjects, uploadFile, downloadFile, createFolder, deleteObject, deleteFolder } from './s3'
 import { S3Connection } from '../shared/types'
 import { getLocalHome, listLocalDir, createLocalDir, deleteLocalItem } from './localFs'
@@ -89,6 +89,8 @@ app.whenReady().then(() => {
   // Settings IPC handlers
   ipcMain.handle('get-theme', async () => await getTheme())
   ipcMain.handle('save-theme', async (_, theme: string) => await saveTheme(theme))
+  ipcMain.handle('get-language', async () => await getLanguage())
+  ipcMain.handle('save-language', async (_, language: string) => await saveLanguage(language))
 
   // Update IPC handlers
   ipcMain.handle('get-app-version', () => app.getVersion())
@@ -96,9 +98,19 @@ app.whenReady().then(() => {
   ipcMain.handle('download-update', async () => await downloadUpdate())
   ipcMain.handle('install-update', () => quitAndInstall())
 
-  // Export connections: open save dialog and write JSON
+  // Export connections: warn user, open save dialog and write decrypted JSON
   ipcMain.handle('export-connections', async () => {
     const mainWindow = BrowserWindow.getAllWindows()[0]
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      buttons: ['Export', 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'Export Connections',
+      message: 'Credentials will be exported in plain text',
+      detail: 'The exported file will contain your access keys and secret keys without encryption. Keep this file secure and do not share it.'
+    })
+    if (response !== 0) return false
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
       defaultPath: 'connections.json',
       filters: [{ name: 'JSON', extensions: ['json'] }]

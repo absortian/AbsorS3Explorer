@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { S3Connection } from '../../../shared/types'
 import { Folder, File, ArrowLeft, RefreshCw, Trash2, HardDrive, Download, FolderPlus, FolderDown } from 'lucide-react'
 import { useTransferQueue } from '../context/TransferQueueContext'
@@ -21,6 +22,7 @@ const CONTEXT_MENU_WIDTH = 200
 const CONTEXT_MENU_GUTTER = 4
 
   export default function S3Explorer({ connection, localCurrentPath, onLocationChange }: S3ExplorerProps) {
+  const { t } = useTranslation()
   const [currentBucket, setCurrentBucket] = useState(connection.bucket || '')
   const [currentPrefix, setCurrentPrefix] = useState('')
   const [buckets, setBuckets] = useState<string[]>([])
@@ -57,7 +59,7 @@ const CONTEXT_MENU_GUTTER = 4
       setLastClickedItem(null)
       if (onLocationChange) onLocationChange(bucket, prefix)
     } catch (err: any) {
-      setError(err.message || 'Failed to list objects')
+      setError(err.message || t('s3.failedToListObjects'))
     } finally {
       setLoading(false)
     }
@@ -81,11 +83,16 @@ const CONTEXT_MENU_GUTTER = 4
     const handleOtherMenu = (e: Event) => {
       if ((e as CustomEvent).detail !== 's3') setContextMenu(null)
     }
+    const handleOtherClick = (e: Event) => {
+      if ((e as CustomEvent).detail !== 's3') setContextMenu(null)
+    }
     window.addEventListener('click', handleClick)
     window.addEventListener('contextmenu-open', handleOtherMenu)
+    window.addEventListener('explorer-panel-click', handleOtherClick)
     return () => {
       window.removeEventListener('click', handleClick)
       window.removeEventListener('contextmenu-open', handleOtherMenu)
+      window.removeEventListener('explorer-panel-click', handleOtherClick)
     }
   }, [])
 
@@ -104,6 +111,8 @@ const CONTEXT_MENU_GUTTER = 4
 
   const handleItemClick = (e: React.MouseEvent, itemId: string) => {
     e.stopPropagation()
+    setContextMenu(null)
+    window.dispatchEvent(new CustomEvent('explorer-panel-click', { detail: 's3' }))
     if (e.metaKey || e.ctrlKey) {
       setSelectedItems(prev => {
         const next = new Set(prev)
@@ -132,6 +141,8 @@ const CONTEXT_MENU_GUTTER = 4
   }
 
   const handleBackgroundClick = (e: React.MouseEvent) => {
+    setContextMenu(null)
+    window.dispatchEvent(new CustomEvent('explorer-panel-click', { detail: 's3' }))
     if (e.target === e.currentTarget) {
       setSelectedItems(new Set())
       setLastClickedItem(null)
@@ -159,8 +170,8 @@ const CONTEXT_MENU_GUTTER = 4
   const handleDelete = async (keys: { key: string; isFolder: boolean }[]) => {
     if (!currentBucket || keys.length === 0) return
     const msg = keys.length === 1
-      ? `Are you sure you want to delete "${keys[0].isFolder ? keys[0].key.split('/').filter(Boolean).pop() + '/' : keys[0].key.split('/').pop()}"?`
-      : `Are you sure you want to delete ${keys.length} items?`
+      ? t('s3.confirmDelete', { name: keys[0].isFolder ? keys[0].key.split('/').filter(Boolean).pop() + '/' : keys[0].key.split('/').pop() })
+      : t('s3.confirmDeleteMultiple', { count: keys.length })
     if (!window.confirm(msg)) return
     try {
       setLoading(true)
@@ -173,7 +184,7 @@ const CONTEXT_MENU_GUTTER = 4
       }
       loadObjects(currentBucket, currentPrefix)
     } catch (err: any) {
-      alert(err.message || 'Failed to delete')
+      alert(err.message || t('s3.failedToDelete'))
     } finally {
       setLoading(false)
     }
@@ -323,7 +334,7 @@ const CONTEXT_MENU_GUTTER = 4
       setShowNewFolderInput(false)
       loadObjects(currentBucket, currentPrefix)
     } catch (err: any) {
-      alert(err.message || 'Failed to create folder')
+      alert(err.message || t('s3.failedToCreateFolder'))
     }
   }
 
@@ -358,13 +369,13 @@ const CONTEXT_MENU_GUTTER = 4
             <RefreshCw size={18} className={loading ? 'spin' : ''} />
           </button>
           {currentBucket && (
-            <button className="btn-icon" title="New Folder" onClick={() => setShowNewFolderInput(true)}>
+            <button className="btn-icon" title={t('s3.newFolder')} onClick={() => setShowNewFolderInput(true)}>
               <FolderPlus size={18} />
             </button>
           )}
           <span style={{ marginLeft: '12px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
             <HardDrive size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
-            {currentBucket || 'All Buckets'} {currentBucket && <span style={{ opacity: 0.5 }}>/ {currentPrefix}</span>}
+            {currentBucket || t('s3.allBuckets')} {currentBucket && <span style={{ opacity: 0.5 }}>/ {currentPrefix}</span>}
           </span>
         </div>
       </div>
@@ -380,10 +391,10 @@ const CONTEXT_MENU_GUTTER = 4
            onClick={handleBackgroundClick}
       >
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading...</div>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>{t('s3.loading')}</div>
         ) : !currentBucket ? (
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            {buckets.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No buckets found</div>}
+            {buckets.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>{t('s3.noBuckets')}</div>}
             {buckets.map(bucket => (
               <li key={bucket} onClick={() => loadObjects(bucket, '')} style={itemStyle}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -394,7 +405,7 @@ const CONTEXT_MENU_GUTTER = 4
             ))}
           </ul>
         ) : folders.length === 0 && files.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Empty folder</div>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>{t('s3.emptyFolder')}</div>
         ) : (
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {showNewFolderInput && (
@@ -411,7 +422,7 @@ const CONTEXT_MENU_GUTTER = 4
                       if (e.key === 'Escape') { setShowNewFolderInput(false); setNewFolderName('') }
                     }}
                     onBlur={() => { setShowNewFolderInput(false); setNewFolderName('') }}
-                    placeholder="Folder name..."
+                    placeholder={t('s3.folderNamePlaceholder')}
                     style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--accent-primary)', padding: '4px 8px', borderRadius: '4px', color: 'white', outline: 'none', flex: 1, fontSize: '0.9rem' }}
                   />
                 </div>
@@ -457,10 +468,10 @@ const CONTEXT_MENU_GUTTER = 4
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                       {formatFileSize(file.size)}
                     </span>
-                    <button className="btn-icon" title="Download" onClick={(e) => handleDownload(file.key, e)}>
+                    <button className="btn-icon" title={t('s3.download')} onClick={(e) => handleDownload(file.key, e)}>
                       <Download size={14} />
                     </button>
-                    <button className="btn-icon" title="Delete" onClick={(e) => { e.stopPropagation(); handleDelete([{ key: file.key, isFolder: false }]); }}>
+                    <button className="btn-icon" title={t('s3.delete')} onClick={(e) => { e.stopPropagation(); handleDelete([{ key: file.key, isFolder: false }]); }}>
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -509,7 +520,7 @@ const CONTEXT_MENU_GUTTER = 4
                 onClick={(e) => { setContextMenu(null); handleDownload(contextMenu.key, e) }}
               >
                 <Download size={16} />
-                Download (Save As...)
+                {t('s3.downloadSaveAs')}
               </button>
               <button 
                 className="s3-context-menu-item"
@@ -521,7 +532,7 @@ const CONTEXT_MENU_GUTTER = 4
                 }}
               >
                 <FolderDown size={16} />
-                {selectedItems.size > 1 ? `Download ${selectedItems.size} to Local` : 'Download to Local Folder'}
+                {selectedItems.size > 1 ? t('s3.downloadItemsToLocal', { count: selectedItems.size }) : t('s3.downloadToLocal')}
               </button>
             </>
           )}
@@ -534,7 +545,7 @@ const CONTEXT_MENU_GUTTER = 4
             }}
           >
             <Trash2 size={16} />
-            {selectedItems.size > 1 ? `Delete ${selectedItems.size} items` : 'Delete'}
+            {selectedItems.size > 1 ? t('s3.deleteItems', { count: selectedItems.size }) : t('s3.delete')}
           </button>
         </div>
       )}
@@ -544,11 +555,11 @@ const CONTEXT_MENU_GUTTER = 4
 
 const itemStyle: React.CSSProperties = {
   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-  padding: '12px 16px', borderBottom: '1px solid var(--border-light)', cursor: 'pointer',
-  transition: 'background var(--transition-fast)', borderRadius: '4px'
+  padding: '12px 16px', borderBottom: '1px solid var(--border-light)',
+  cursor: 'pointer', transition: 'background var(--transition-fast), border-color var(--transition-fast)',
 }
 
 const selectedStyle: React.CSSProperties = {
   background: 'rgba(99, 102, 241, 0.15)',
-  borderColor: 'rgba(99, 102, 241, 0.25)'
+  borderBottom: '1px solid rgba(99, 102, 241, 0.25)',
 }

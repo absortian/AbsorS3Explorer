@@ -1,7 +1,9 @@
+import { useTranslation } from 'react-i18next'
 import { useTransferQueue } from '../context/TransferQueueContext'
 import { CheckCircle, XCircle, Loader2, ArrowUpCircle, ArrowDownCircle, RotateCcw } from 'lucide-react'
 
 export default function TransferQueueBar() {
+  const { t } = useTranslation()
   const { jobs, clearCompleted, retryJob } = useTransferQueue()
 
   if (jobs.length === 0) return null
@@ -18,13 +20,13 @@ export default function TransferQueueBar() {
     <div className="queue-bar-container">
       <div className="queue-bar-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Transfers</span>
-          {activeCount > 0 && <span className="badge badge-active">{activeCount} Active</span>}
-          {pendingCount > 0 && <span className="badge badge-pending">{pendingCount} Pending</span>}
+          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{t('transfers.title')}</span>
+          {activeCount > 0 && <span className="badge badge-active">{t('transfers.active', { count: activeCount })}</span>}
+          {pendingCount > 0 && <span className="badge badge-pending">{t('transfers.pending', { count: pendingCount })}</span>}
         </div>
         {showClear && (
           <button className="btn-clear" onClick={clearCompleted}>
-            Clear Completed
+            {t('transfers.clearCompleted')}
           </button>
         )}
       </div>
@@ -38,9 +40,9 @@ export default function TransferQueueBar() {
             <div className="queue-item-name" title={job.fileName}>{job.fileName}</div>
             
             <div className="queue-item-status">
-              {job.status === 'pending' && <span style={{ color: 'var(--text-muted)' }}>Pending</span>}
-              {job.status === 'uploading' && <><Loader2 size={14} className="spin" /> Uploading...</>}
-              {job.status === 'downloading' && <><Loader2 size={14} className="spin" /> Downloading...</>}
+              {job.status === 'pending' && <span style={{ color: 'var(--text-muted)' }}>{t('transfers.statusPending')}</span>}
+              {job.status === 'uploading' && <><Loader2 size={14} className="spin" /> {t('transfers.statusUploading')}</>}
+              {job.status === 'downloading' && <><Loader2 size={14} className="spin" /> {t('transfers.statusDownloading')}</>}
               {job.status === 'done' && <CheckCircle size={14} color="#10b981" />}
               {job.status === 'error' && <span title={job.error} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><XCircle size={14} color="#ef4444" /><button onClick={() => retryJob(job.id)} className="btn-retry" title="Retry"><RotateCcw size={12} /></button></span>}
             </div>
@@ -48,7 +50,7 @@ export default function TransferQueueBar() {
         ))}
         {jobs.length > 5 && (
            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '4px' }}>
-             +{jobs.length - 5} more items...
+             {t('transfers.moreItems', { count: jobs.length - 5 })}
            </div>
         )}
       </div>

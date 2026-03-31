@@ -30,6 +30,8 @@ declare global {
       deleteLocalItem: (itemPath: string) => Promise<void>
       getTheme: () => Promise<string>
       saveTheme: (theme: string) => Promise<void>
+      getLanguage: () => Promise<string>
+      saveLanguage: (language: string) => Promise<void>
       exportConnections: () => Promise<boolean>
       importConnections: () => Promise<S3Connection[] | null>
       getAppVersion: () => Promise<string>

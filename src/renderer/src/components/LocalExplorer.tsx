@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Folder, File, ArrowLeft, RefreshCw, HardDrive, Trash2, FolderPlus } from 'lucide-react'
 import { useTransferQueue } from '../context/TransferQueueContext'
 import { formatFileSize } from '../../../shared/utils'
@@ -31,6 +32,7 @@ const getContextMenuPosition = (mouseX: number, mouseY: number, itemCount: numbe
 }
 
 export default function LocalExplorer({ activeConnection, s3Location, onPathChange }: LocalExplorerProps) {
+  const { t } = useTranslation()
   const [currentPath, setCurrentPath] = useState<string>('')
   const [folders, setFolders] = useState<string[]>([])
   const [files, setFiles] = useState<any[]>([])
@@ -49,11 +51,16 @@ export default function LocalExplorer({ activeConnection, s3Location, onPathChan
     const handleOtherMenu = (e: Event) => {
       if ((e as CustomEvent).detail !== 'local') setContextMenu(null)
     }
+    const handleOtherClick = (e: Event) => {
+      if ((e as CustomEvent).detail !== 'local') setContextMenu(null)
+    }
     window.addEventListener('click', handleClick)
     window.addEventListener('contextmenu-open', handleOtherMenu)
+    window.addEventListener('explorer-panel-click', handleOtherClick)
     return () => {
       window.removeEventListener('click', handleClick)
       window.removeEventListener('contextmenu-open', handleOtherMenu)
+      window.removeEventListener('explorer-panel-click', handleOtherClick)
     }
   }, [])
 
@@ -97,7 +104,7 @@ export default function LocalExplorer({ activeConnection, s3Location, onPathChan
       setLastClickedItem(null)
       if (onPathChange) onPathChange(result.currentPath)
     } catch (err: any) {
-      setError(err.message || 'Failed to list directory')
+      setError(err.message || t('local.failedToListDirectory'))
     } finally {
       setLoading(false)
     }
@@ -193,8 +200,8 @@ export default function LocalExplorer({ activeConnection, s3Location, onPathChan
     const itemsToDelete = getSelectedItemPaths()
     if (itemsToDelete.length === 0) return
     const msg = itemsToDelete.length === 1
-      ? `Are you sure you want to delete "${itemsToDelete[0].name}"?`
-      : `Are you sure you want to delete ${itemsToDelete.length} items?`
+      ? t('local.confirmDelete', { name: itemsToDelete[0].name })
+      : t('local.confirmDeleteMultiple', { count: itemsToDelete.length })
     if (!window.confirm(msg)) return
     try {
       for (const item of itemsToDelete) {
@@ -202,7 +209,7 @@ export default function LocalExplorer({ activeConnection, s3Location, onPathChan
       }
       loadDirectory(currentPath)
     } catch (err: any) {
-      alert(err.message || 'Failed to delete')
+      alert(err.message || t('local.failedToDelete'))
     }
     setContextMenu(null)
   }
@@ -240,11 +247,13 @@ export default function LocalExplorer({ activeConnection, s3Location, onPathChan
       setShowNewFolderInput(false)
       loadDirectory(currentPath)
     } catch (err: any) {
-      alert(err.message || 'Failed to create folder')
+      alert(err.message || t('local.failedToCreateFolder'))
     }
   }
 
   const handleItemClick = (e: React.MouseEvent, itemId: string) => {
+    setContextMenu(null)
+    window.dispatchEvent(new CustomEvent('explorer-panel-click', { detail: 'local' }))
     if (e.metaKey || e.ctrlKey) {
       // Toggle individual item
       setSelectedItems(prev => {
@@ -276,6 +285,8 @@ export default function LocalExplorer({ activeConnection, s3Location, onPathChan
   }
 
   const handleBackgroundClick = (e: React.MouseEvent) => {
+    setContextMenu(null)
+    window.dispatchEvent(new CustomEvent('explorer-panel-click', { detail: 'local' }))
     // Only clear if clicking on the panel background itself, not on a child item
     if (e.target === e.currentTarget) {
       setSelectedItems(new Set())
@@ -351,12 +362,12 @@ export default function LocalExplorer({ activeConnection, s3Location, onPathChan
           <button className="btn-icon" onClick={() => loadDirectory(currentPath)} disabled={loading}>
             <RefreshCw size={18} className={loading ? 'spin' : ''} />
           </button>
-          <button className="btn-icon" title="New Folder" onClick={() => setShowNewFolderInput(true)}>
+          <button className="btn-icon" title={t('local.newFolder')} onClick={() => setShowNewFolderInput(true)}>
             <FolderPlus size={18} />
           </button>
           <span style={{ marginLeft: '12px', fontSize: '0.9rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }} title={currentPath}>
             <HardDrive size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
-            {currentPath || 'Loading...'}
+            {currentPath || t('local.loading')}
           </span>
         </div>
       </div>
@@ -373,9 +384,9 @@ export default function LocalExplorer({ activeConnection, s3Location, onPathChan
            onClick={handleBackgroundClick}
       >
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading...</div>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>{t('local.loading')}</div>
         ) : folders.length === 0 && files.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Empty directory</div>
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>{t('local.emptyDirectory')}</div>
         ) : (
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {showNewFolderInput && (
@@ -392,7 +403,7 @@ export default function LocalExplorer({ activeConnection, s3Location, onPathChan
                       if (e.key === 'Escape') { setShowNewFolderInput(false); setNewFolderName('') }
                     }}
                     onBlur={() => { setShowNewFolderInput(false); setNewFolderName('') }}
-                    placeholder="Folder name..."
+                    placeholder={t('local.folderNamePlaceholder')}
                     style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--accent-primary)', padding: '4px 8px', borderRadius: '4px', color: 'white', outline: 'none', flex: 1, fontSize: '0.9rem' }}
                   />
                 </div>
@@ -409,7 +420,7 @@ export default function LocalExplorer({ activeConnection, s3Location, onPathChan
                     onContextMenu={(e) => handleContextMenu(e, null, true, folder)}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Folder size={18} color={isSelected ? 'var(--accent-primary)' : 'var(--text-primary)'} />
+                    <Folder size={18} color="var(--accent-primary)" />
                     <span>{folder}</span>
                   </div>
                 </li>
@@ -472,7 +483,7 @@ export default function LocalExplorer({ activeConnection, s3Location, onPathChan
               disabled={!activeConnection || !s3Location.bucket}
             >
               <CloudUpload size={16} />
-              {selectedItems.size > 1 ? `Copy ${selectedItems.size} items to S3` : 'Copy to S3'}
+              {selectedItems.size > 1 ? t('local.copyItemsToS3', { count: selectedItems.size }) : t('local.copyToS3')}
             </button>
           )}
           {/* Delete */}
@@ -482,7 +493,7 @@ export default function LocalExplorer({ activeConnection, s3Location, onPathChan
               onClick={handleDeleteLocal}
             >
               <Trash2 size={16} />
-              {selectedItems.size > 1 ? `Delete ${selectedItems.size} items` : 'Delete'}
+              {selectedItems.size > 1 ? t('local.deleteItems', { count: selectedItems.size }) : t('local.delete')}
             </button>
           )}
           {/* New Folder - on background context menu */}
@@ -492,7 +503,7 @@ export default function LocalExplorer({ activeConnection, s3Location, onPathChan
               onClick={() => { setContextMenu(null); setShowNewFolderInput(true) }}
             >
               <FolderPlus size={16} />
-              New Folder
+              {t('local.newFolder')}
             </button>
           )}
         </div>
@@ -519,11 +530,11 @@ export default function LocalExplorer({ activeConnection, s3Location, onPathChan
 
 const itemStyle: React.CSSProperties = {
   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-  padding: '12px 16px', borderBottom: '1px solid var(--border-light)', cursor: 'pointer',
-  transition: 'background var(--transition-fast)', borderRadius: '4px'
+  padding: '12px 16px', borderBottom: '1px solid var(--border-light)',
+  cursor: 'pointer', transition: 'background var(--transition-fast), border-color var(--transition-fast)',
 }
 
 const selectedStyle: React.CSSProperties = {
   background: 'rgba(99, 102, 241, 0.15)',
-  borderColor: 'rgba(99, 102, 241, 0.25)'
+  borderBottom: '1px solid rgba(99, 102, 241, 0.25)',
 }

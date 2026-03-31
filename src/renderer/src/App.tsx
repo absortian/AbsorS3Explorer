@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Menu, Settings } from 'lucide-react'
 import './assets/main.css'
 import ConnectionsSidebar from './components/ConnectionsSidebar'
@@ -10,6 +11,7 @@ import { S3Connection } from '../../shared/types'
 import logo from './assets/icon.png'
 
 function App(): React.JSX.Element {
+  const { t, i18n } = useTranslation()
   const [activeConnection, setActiveConnection] = useState<S3Connection | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [s3Location, setS3Location] = useState({ bucket: '', prefix: '' })
@@ -17,6 +19,39 @@ function App(): React.JSX.Element {
   const [theme, setTheme] = useState('dark')
   const [showSettings, setShowSettings] = useState(false)
   const [connectionsKey, setConnectionsKey] = useState(0)
+  const [splitRatio, setSplitRatio] = useState(0.5)
+  const splitRef = useRef<HTMLDivElement>(null)
+  const draggingRef = useRef(false)
+
+  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    draggingRef.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!draggingRef.current || !splitRef.current) return
+      const rect = splitRef.current.getBoundingClientRect()
+      const minPx = 200
+      const x = Math.max(minPx, Math.min(ev.clientX - rect.left, rect.width - minPx))
+      setSplitRatio(x / rect.width)
+    }
+
+    const onMouseUp = () => {
+      draggingRef.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
+
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  }, [])
+
+  const handleDividerDoubleClick = useCallback(() => {
+    setSplitRatio(0.5)
+  }, [])
 
   useEffect(() => {
     window.api.getTheme().then((saved) => {
@@ -24,6 +59,9 @@ function App(): React.JSX.Element {
       if (saved !== 'dark') {
         document.documentElement.dataset.theme = saved
       }
+    })
+    window.api.getLanguage().then((lang) => {
+      i18n.changeLanguage(lang)
     })
   }, [])
 
@@ -41,11 +79,11 @@ function App(): React.JSX.Element {
       <main className="main-content">
         <header className="topbar">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-             <button className="btn-icon" onClick={() => setSidebarOpen(!sidebarOpen)} title="Toggle Connections">
+             <button className="btn-icon" onClick={() => setSidebarOpen(!sidebarOpen)} title={t('app.toggleConnections')}>
                <Menu size={20} />
              </button>
              <img src={logo} alt="Absor" style={{ height: '28px', borderRadius: '6px' }} />
-             <h2 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Absor S3 Explorer</h2>
+             <h2 style={{ fontSize: '1.2rem', fontWeight: 600 }}>{t('app.title')}</h2>
              {activeConnection && (
                <>
                  <span style={{ color: 'var(--text-muted)' }}>/</span>
@@ -53,7 +91,7 @@ function App(): React.JSX.Element {
                </>
              )}
           </div>
-          <button className="btn-icon" onClick={() => setShowSettings(true)} title="Ajustes">
+          <button className="btn-icon" onClick={() => setShowSettings(true)} title={t('app.settings')}>
             <Settings size={20} />
           </button>
         </header>
@@ -62,17 +100,18 @@ function App(): React.JSX.Element {
           {!activeConnection ? (
             <div className="glass-panel" style={{ padding: '40px', textAlign: 'center', marginTop: '10vh' }}>
               <img src={logo} alt="Absor" style={{ height: '64px', borderRadius: '12px', marginBottom: '20px' }} />
-              <h1 style={{ fontSize: '1.8rem', marginBottom: '12px' }}>Welcome to Absor Explorer</h1>
+              <h1 style={{ fontSize: '1.8rem', marginBottom: '12px' }}>{t('app.welcomeTitle')}</h1>
               <p style={{ color: 'var(--text-secondary)', maxWidth: '500px', margin: '0 auto', lineHeight: '1.6' }}>
-                Connect to any S3-compatible blob storage, organize your connections, and seamlessly drag & drop files between your Mac and the cloud.
+                {t('app.welcomeDescription')}
               </p>
             </div>
           ) : (
-            <div className="split-view" style={{ display: 'flex', height: '100%', width: '100%' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="split-view" ref={splitRef} style={{ display: 'flex', height: '100%', width: '100%' }}>
+              <div style={{ flexBasis: `${splitRatio * 100}%`, flexShrink: 0, flexGrow: 0, minWidth: 200, overflow: 'hidden' }}>
                 <LocalExplorer activeConnection={activeConnection} s3Location={s3Location} onPathChange={setLocalCurrentPath} />
               </div>
-              <div style={{ flex: 1, minWidth: 0, borderLeft: '1px solid var(--border-light)' }}>
+              <div className="split-divider" onMouseDown={handleDividerMouseDown} onDoubleClick={handleDividerDoubleClick} />
+              <div style={{ flex: 1, minWidth: 200, overflow: 'hidden' }}>
                 <S3Explorer 
                   key={activeConnection.id} 
                   connection={activeConnection} 

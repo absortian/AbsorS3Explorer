@@ -8,4 +8,5 @@ export interface S3Connection {
   region?: string;
   isFolder?: boolean;
   parentId?: string | null;
+  _encrypted?: boolean;
 }
