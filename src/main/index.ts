@@ -68,8 +68,18 @@ app.whenReady().then(() => {
   // S3 IPC handlers
   ipcMain.handle('s3-list-buckets', async (_, conn: S3Connection) => await listBuckets(conn))
   ipcMain.handle('s3-list-objects', async (_, conn: S3Connection, bucket: string, prefix: string) => await listObjects(conn, bucket, prefix))
-  ipcMain.handle('s3-upload-file', async (_, conn: S3Connection, bucket: string, localPath: string, key: string) => await uploadFile(conn, bucket, localPath, key))
-  ipcMain.handle('s3-download-file', async (_, conn: S3Connection, bucket: string, key: string, localDestPath: string) => await downloadFile(conn, bucket, key, localDestPath))
+  ipcMain.handle('s3-upload-file', async (event, conn: S3Connection, bucket: string, localPath: string, key: string, jobId?: string) => {
+    const onProgress = jobId ? (loaded: number, total: number) => {
+      event.sender.send('transfer-progress', { jobId, loaded, total })
+    } : undefined
+    await uploadFile(conn, bucket, localPath, key, onProgress)
+  })
+  ipcMain.handle('s3-download-file', async (event, conn: S3Connection, bucket: string, key: string, localDestPath: string, jobId?: string) => {
+    const onProgress = jobId ? (loaded: number, total: number) => {
+      event.sender.send('transfer-progress', { jobId, loaded, total })
+    } : undefined
+    await downloadFile(conn, bucket, key, localDestPath, onProgress)
+  })
   ipcMain.handle('s3-create-folder', async (_, conn: S3Connection, bucket: string, key: string) => await createFolder(conn, bucket, key))
   ipcMain.handle('s3-delete-object', async (_, conn: S3Connection, bucket: string, key: string) => await deleteObject(conn, bucket, key))
   ipcMain.handle('s3-delete-folder', async (_, conn: S3Connection, bucket: string, prefix: string) => await deleteFolder(conn, bucket, prefix))

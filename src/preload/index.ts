@@ -8,8 +8,8 @@ const api = {
   saveConnections: (connections: S3Connection[]) => ipcRenderer.invoke('save-connections', connections),
   listBuckets: (conn: S3Connection) => ipcRenderer.invoke('s3-list-buckets', conn),
   listObjects: (conn: S3Connection, bucket: string, prefix: string) => ipcRenderer.invoke('s3-list-objects', conn, bucket, prefix),
-  uploadFile: (conn: S3Connection, bucket: string, localPath: string, key: string) => ipcRenderer.invoke('s3-upload-file', conn, bucket, localPath, key),
-  downloadFile: (conn: S3Connection, bucket: string, key: string, localDestPath: string) => ipcRenderer.invoke('s3-download-file', conn, bucket, key, localDestPath),
+  uploadFile: (conn: S3Connection, bucket: string, localPath: string, key: string, jobId?: string) => ipcRenderer.invoke('s3-upload-file', conn, bucket, localPath, key, jobId),
+  downloadFile: (conn: S3Connection, bucket: string, key: string, localDestPath: string, jobId?: string) => ipcRenderer.invoke('s3-download-file', conn, bucket, key, localDestPath, jobId),
   createFolder: (conn: S3Connection, bucket: string, key: string) => ipcRenderer.invoke('s3-create-folder', conn, bucket, key),
   deleteObject: (conn: S3Connection, bucket: string, key: string) => ipcRenderer.invoke('s3-delete-object', conn, bucket, key),
   deleteFolder: (conn: S3Connection, bucket: string, prefix: string) => ipcRenderer.invoke('s3-delete-folder', conn, bucket, prefix),
@@ -31,6 +31,10 @@ const api = {
   onUpdateStatus: (callback: (_event: unknown, data: unknown) => void) => {
     ipcRenderer.on('update-status', callback)
     return () => ipcRenderer.removeListener('update-status', callback)
+  },
+  onTransferProgress: (callback: (_event: unknown, data: { jobId: string; loaded: number; total: number }) => void) => {
+    ipcRenderer.on('transfer-progress', callback)
+    return () => ipcRenderer.removeListener('transfer-progress', callback)
   }
 }
 

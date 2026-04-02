@@ -18,8 +18,8 @@ declare global {
       saveConnections: (connections: S3Connection[]) => Promise<void>
       listBuckets: (conn: S3Connection) => Promise<string[]>
       listObjects: (conn: S3Connection, bucket: string, prefix: string) => Promise<{ folders: string[], files: Array<{key: string, size: number, lastModified: string}> }>
-      uploadFile: (conn: S3Connection, bucket: string, localPath: string, key: string) => Promise<void>
-      downloadFile: (conn: S3Connection, bucket: string, key: string, localDestPath: string) => Promise<void>
+      uploadFile: (conn: S3Connection, bucket: string, localPath: string, key: string, jobId?: string) => Promise<void>
+      downloadFile: (conn: S3Connection, bucket: string, key: string, localDestPath: string, jobId?: string) => Promise<void>
       createFolder: (conn: S3Connection, bucket: string, key: string) => Promise<void>
       deleteObject: (conn: S3Connection, bucket: string, key: string) => Promise<void>
       deleteFolder: (conn: S3Connection, bucket: string, prefix: string) => Promise<void>
@@ -39,6 +39,7 @@ declare global {
       downloadUpdate: () => Promise<void>
       installUpdate: () => void
       onUpdateStatus: (callback: (_event: unknown, data: UpdateStatusEvent) => void) => () => void
+      onTransferProgress: (callback: (_event: unknown, data: { jobId: string; loaded: number; total: number }) => void) => () => void
     }
   }
 }

@@ -10,6 +10,7 @@ export type TransferJob = {
   error?: string
   connectionId: string
   bucket: string
+  progress?: number
 }
 
 interface TransferQueueContextType {
@@ -50,11 +51,21 @@ export function TransferQueueProvider({ children }: { children: React.ReactNode 
   }
 
   const updateJobStatus = (id: string, status: TransferJob['status'], error?: string) => {
-    setJobs(prev => prev.map(j => j.id === id ? { ...j, status, error } : j))
+    setJobs(prev => prev.map(j => j.id === id ? { ...j, status, error, ...(status === 'done' ? { progress: 100 } : {}) } : j))
     if (status === 'done' || status === 'error') {
       setLastJobUpdate(Date.now())
     }
   }
+
+  // Listen for transfer progress events from main process
+  useEffect(() => {
+    const cleanup = window.api.onTransferProgress((_event, data) => {
+      const { jobId, loaded, total } = data
+      const progress = total > 0 ? Math.min(Math.round((loaded / total) * 100), 100) : 0
+      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, progress } : j))
+    })
+    return cleanup
+  }, [])
 
   // Queue Processor
   useEffect(() => {
@@ -80,9 +91,9 @@ export function TransferQueueProvider({ children }: { children: React.ReactNode 
       if (!conn) throw new Error('Connection not found')
 
       if (job.type === 'upload') {
-        await window.api.uploadFile(conn, job.bucket, job.sourcePath, job.destPath)
+        await window.api.uploadFile(conn, job.bucket, job.sourcePath, job.destPath, job.id)
       } else {
-        await window.api.downloadFile(conn, job.bucket, job.sourcePath, job.destPath)
+        await window.api.downloadFile(conn, job.bucket, job.sourcePath, job.destPath, job.id)
       }
       
       updateJobStatus(job.id, 'done')

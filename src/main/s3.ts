@@ -3,8 +3,22 @@ import { S3Connection } from '../shared/types'
 import * as fs from 'fs/promises'
 import { createReadStream, createWriteStream, ReadStream } from 'fs'
 import { dirname } from 'path'
-import { Readable } from 'stream'
+import { Readable, Transform } from 'stream'
 import { pipeline } from 'stream/promises'
+
+export type ProgressCallback = (loaded: number, total: number) => void
+
+function createProgressStream(totalBytes: number, onProgress: ProgressCallback): Transform {
+  let loaded = 0
+  return new Transform({
+    transform(chunk, _encoding, callback) {
+      loaded += chunk.length
+      onProgress(loaded, totalBytes)
+      this.push(chunk)
+      callback()
+    }
+  })
+}
 
 const CONTENT_TYPE = 'application/octet-stream'
 const MAX_S3_OBJECT_SIZE = 5 * 1024 * 1024 * 1024 * 1024
@@ -69,8 +83,18 @@ async function moveTempFile(partialDestPath: string, localDestPath: string) {
   }
 }
 
-async function uploadWithSinglePut(client: S3Client, bucket: string, key: string, localPath: string, fileSize: number) {
-  const body = fileSize === 0 ? '' : createReadStream(localPath)
+async function uploadWithSinglePut(client: S3Client, bucket: string, key: string, localPath: string, fileSize: number, onProgress?: ProgressCallback) {
+  let body: string | Readable = ''
+  if (fileSize > 0) {
+    const fileStream = createReadStream(localPath)
+    if (onProgress) {
+      const progressStream = createProgressStream(fileSize, onProgress)
+      fileStream.pipe(progressStream)
+      body = progressStream
+    } else {
+      body = fileStream
+    }
+  }
 
   await client.send(new PutObjectCommand({
     Bucket: bucket,
@@ -81,7 +105,7 @@ async function uploadWithSinglePut(client: S3Client, bucket: string, key: string
   }))
 }
 
-async function uploadWithMultipart(client: S3Client, bucket: string, key: string, localPath: string, fileSize: number) {
+async function uploadWithMultipart(client: S3Client, bucket: string, key: string, localPath: string, fileSize: number, onProgress?: ProgressCallback) {
   const createResponse = await client.send(new CreateMultipartUploadCommand({
     Bucket: bucket,
     Key: key,
@@ -120,6 +144,7 @@ async function uploadWithMultipart(client: S3Client, bucket: string, key: string
 
       parts.push({ ETag: uploadPartResponse.ETag, PartNumber: partNumber })
       offset = nextOffset
+      if (onProgress) onProgress(offset, fileSize)
       partNumber += 1
     }
 
@@ -173,7 +198,7 @@ export async function listObjects(connection: S3Connection, bucket: string, pref
   }
 }
 
-export async function uploadFile(connection: S3Connection, bucket: string, localPath: string, key: string) {
+export async function uploadFile(connection: S3Connection, bucket: string, localPath: string, key: string, onProgress?: ProgressCallback) {
   if (!bucket) throw new Error('No bucket specified')
   const client = getClient(connection)
 
@@ -189,11 +214,11 @@ export async function uploadFile(connection: S3Connection, bucket: string, local
     }
 
     if (fileStat.size >= MULTIPART_THRESHOLD) {
-      await uploadWithMultipart(client, bucket, key, localPath, fileStat.size)
+      await uploadWithMultipart(client, bucket, key, localPath, fileStat.size, onProgress)
       return
     }
 
-    await uploadWithSinglePut(client, bucket, key, localPath, fileStat.size)
+    await uploadWithSinglePut(client, bucket, key, localPath, fileStat.size, onProgress)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown upload error'
     throw new Error(`Failed to upload "${localPath}" to "${bucket}/${key}": ${message}`)
@@ -226,7 +251,7 @@ export async function deleteObject(connection: S3Connection, bucket: string, key
   await client.send(command)
 }
 
-export async function downloadFile(connection: S3Connection, bucket: string, key: string, localDestPath: string) {
+export async function downloadFile(connection: S3Connection, bucket: string, key: string, localDestPath: string, onProgress?: ProgressCallback) {
   if (!bucket) throw new Error('No bucket specified')
   const client = getClient(connection)
 
@@ -246,7 +271,12 @@ export async function downloadFile(connection: S3Connection, bucket: string, key
     const sourceStream = toNodeReadable(response.Body)
     const outputStream = createWriteStream(partialDestPath)
 
-    await pipeline(sourceStream, outputStream)
+    if (onProgress && response.ContentLength && response.ContentLength > 0) {
+      const progressStream = createProgressStream(response.ContentLength, onProgress)
+      await pipeline(sourceStream, progressStream, outputStream)
+    } else {
+      await pipeline(sourceStream, outputStream)
+    }
     await moveTempFile(partialDestPath, localDestPath)
   } catch (error) {
     await fs.rm(partialDestPath, { force: true }).catch(() => undefined)

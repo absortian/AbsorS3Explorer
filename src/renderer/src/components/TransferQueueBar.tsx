@@ -39,6 +39,15 @@ export default function TransferQueueBar() {
             </div>
             <div className="queue-item-name" title={job.fileName}>{job.fileName}</div>
             
+            {(job.status === 'uploading' || job.status === 'downloading') && (
+              <div className="queue-item-progress">
+                <div className="progress-bar">
+                  <div className="progress-bar-fill" style={{ width: `${job.progress ?? 0}%` }} />
+                </div>
+                <span className="progress-text">{job.progress ?? 0}%</span>
+              </div>
+            )}
+
             <div className="queue-item-status">
               {job.status === 'pending' && <span style={{ color: 'var(--text-muted)' }}>{t('transfers.statusPending')}</span>}
               {job.status === 'uploading' && <><Loader2 size={14} className="spin" /> {t('transfers.statusUploading')}</>}
@@ -107,6 +116,31 @@ export default function TransferQueueBar() {
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+        }
+        .queue-item-progress {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          min-width: 100px;
+        }
+        .progress-bar {
+          flex: 1;
+          height: 6px;
+          background: rgba(255,255,255,0.1);
+          border-radius: 3px;
+          overflow: hidden;
+        }
+        .progress-bar-fill {
+          height: 100%;
+          background: #3b82f6;
+          border-radius: 3px;
+          transition: width 0.3s ease;
+        }
+        .progress-text {
+          font-size: 0.75rem;
+          color: #60a5fa;
+          min-width: 32px;
+          text-align: right;
         }
         .queue-item-status {
           display: flex;
