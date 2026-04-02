@@ -1,6 +1,17 @@
-import { S3Client, ListObjectsV2Command, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListBucketsCommand } from '@aws-sdk/client-s3'
+import { S3Client, ListObjectsV2Command, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListBucketsCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand } from '@aws-sdk/client-s3'
 import { S3Connection } from '../shared/types'
 import * as fs from 'fs/promises'
+import { createReadStream, createWriteStream, ReadStream } from 'fs'
+import { dirname } from 'path'
+import { Readable } from 'stream'
+import { pipeline } from 'stream/promises'
+
+const CONTENT_TYPE = 'application/octet-stream'
+const MAX_S3_OBJECT_SIZE = 5 * 1024 * 1024 * 1024 * 1024
+const MIN_MULTIPART_PART_SIZE = 5 * 1024 * 1024
+const DEFAULT_MULTIPART_PART_SIZE = 16 * 1024 * 1024
+const MAX_MULTIPART_PARTS = 10000
+const MULTIPART_THRESHOLD = 64 * 1024 * 1024
 
 function getClient(connection: S3Connection): S3Client {
   return new S3Client({
@@ -13,6 +24,126 @@ function getClient(connection: S3Connection): S3Client {
     // Force path style for minio/custom s3 compatibility
     forcePathStyle: true,
   })
+}
+
+function roundUpToMiB(size: number): number {
+  const oneMiB = 1024 * 1024
+  return Math.ceil(size / oneMiB) * oneMiB
+}
+
+function getMultipartPartSize(fileSize: number): number {
+  const requiredPartSize = Math.ceil(fileSize / MAX_MULTIPART_PARTS)
+  return Math.max(MIN_MULTIPART_PART_SIZE, DEFAULT_MULTIPART_PART_SIZE, roundUpToMiB(requiredPartSize))
+}
+
+function createFilePartStream(localPath: string, start: number, end: number): ReadStream {
+  return createReadStream(localPath, { start, end })
+}
+
+function toNodeReadable(body: unknown): Readable {
+  if (body instanceof Readable) {
+    return body
+  }
+
+  if (body && typeof (body as { pipe?: unknown }).pipe === 'function') {
+    return body as Readable
+  }
+
+  if (body && typeof (body as { transformToWebStream?: unknown }).transformToWebStream === 'function') {
+    return Readable.fromWeb((body as { transformToWebStream: () => any }).transformToWebStream())
+  }
+
+  throw new Error('Unsupported response body stream')
+}
+
+async function moveTempFile(partialDestPath: string, localDestPath: string) {
+  try {
+    await fs.rename(partialDestPath, localDestPath)
+  } catch (error) {
+    if (process.platform !== 'win32') {
+      throw error
+    }
+
+    await fs.rm(localDestPath, { force: true })
+    await fs.rename(partialDestPath, localDestPath)
+  }
+}
+
+async function uploadWithSinglePut(client: S3Client, bucket: string, key: string, localPath: string, fileSize: number) {
+  const body = fileSize === 0 ? '' : createReadStream(localPath)
+
+  await client.send(new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    Body: body,
+    ContentLength: fileSize,
+    ContentType: CONTENT_TYPE
+  }))
+}
+
+async function uploadWithMultipart(client: S3Client, bucket: string, key: string, localPath: string, fileSize: number) {
+  const createResponse = await client.send(new CreateMultipartUploadCommand({
+    Bucket: bucket,
+    Key: key,
+    ContentType: CONTENT_TYPE
+  }))
+
+  const uploadId = createResponse.UploadId
+  if (!uploadId) {
+    throw new Error('Multipart upload did not return an upload id')
+  }
+
+  const partSize = getMultipartPartSize(fileSize)
+  const parts: Array<{ ETag: string; PartNumber: number }> = []
+
+  try {
+    let offset = 0
+    let partNumber = 1
+
+    while (offset < fileSize) {
+      const nextOffset = Math.min(offset + partSize, fileSize)
+      const contentLength = nextOffset - offset
+      const body = createFilePartStream(localPath, offset, nextOffset - 1)
+
+      const uploadPartResponse = await client.send(new UploadPartCommand({
+        Bucket: bucket,
+        Key: key,
+        UploadId: uploadId,
+        PartNumber: partNumber,
+        Body: body,
+        ContentLength: contentLength
+      }))
+
+      if (!uploadPartResponse.ETag) {
+        throw new Error(`Missing ETag for part ${partNumber}`)
+      }
+
+      parts.push({ ETag: uploadPartResponse.ETag, PartNumber: partNumber })
+      offset = nextOffset
+      partNumber += 1
+    }
+
+    await client.send(new CompleteMultipartUploadCommand({
+      Bucket: bucket,
+      Key: key,
+      UploadId: uploadId,
+      MultipartUpload: {
+        Parts: parts
+      }
+    }))
+  } catch (error) {
+    try {
+      await client.send(new AbortMultipartUploadCommand({
+        Bucket: bucket,
+        Key: key,
+        UploadId: uploadId
+      }))
+    } catch {
+      // Ignore abort failures so the original transfer error surfaces.
+    }
+
+    throw error
+  }
 }
 
 export async function listBuckets(connection: S3Connection) {
@@ -45,19 +176,28 @@ export async function listObjects(connection: S3Connection, bucket: string, pref
 export async function uploadFile(connection: S3Connection, bucket: string, localPath: string, key: string) {
   if (!bucket) throw new Error('No bucket specified')
   const client = getClient(connection)
-  
-  const fileContent = await fs.readFile(localPath)
-  // Determine content type (simple matching or default to application/octet-stream)
-  const contentType = 'application/octet-stream' // Could use mime-types package
-  
-  const command = new PutObjectCommand({
-    Bucket: bucket,
-    Key: key,
-    Body: fileContent,
-    ContentType: contentType
-  })
-  
-  await client.send(command)
+
+  try {
+    const fileStat = await fs.stat(localPath)
+
+    if (!fileStat.isFile()) {
+      throw new Error('Source path is not a file')
+    }
+
+    if (fileStat.size > MAX_S3_OBJECT_SIZE) {
+      throw new Error('File exceeds the maximum S3 object size of 5 TB')
+    }
+
+    if (fileStat.size >= MULTIPART_THRESHOLD) {
+      await uploadWithMultipart(client, bucket, key, localPath, fileStat.size)
+      return
+    }
+
+    await uploadWithSinglePut(client, bucket, key, localPath, fileStat.size)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown upload error'
+    throw new Error(`Failed to upload "${localPath}" to "${bucket}/${key}": ${message}`)
+  }
 }
 
 export async function createFolder(connection: S3Connection, bucket: string, key: string) {
@@ -89,18 +229,30 @@ export async function deleteObject(connection: S3Connection, bucket: string, key
 export async function downloadFile(connection: S3Connection, bucket: string, key: string, localDestPath: string) {
   if (!bucket) throw new Error('No bucket specified')
   const client = getClient(connection)
-  
-  const command = new GetObjectCommand({
-    Bucket: bucket,
-    Key: key
-  })
-  
-  const response = await client.send(command)
-  if (!response.Body) throw new Error('Empty response body')
-  
-  // Node.js streams
-  const byteArray = await response.Body.transformToByteArray()
-  await fs.writeFile(localDestPath, byteArray)
+
+  const partialDestPath = `${localDestPath}.part`
+
+  try {
+    await fs.mkdir(dirname(localDestPath), { recursive: true })
+
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key
+    })
+
+    const response = await client.send(command)
+    if (!response.Body) throw new Error('Empty response body')
+
+    const sourceStream = toNodeReadable(response.Body)
+    const outputStream = createWriteStream(partialDestPath)
+
+    await pipeline(sourceStream, outputStream)
+    await moveTempFile(partialDestPath, localDestPath)
+  } catch (error) {
+    await fs.rm(partialDestPath, { force: true }).catch(() => undefined)
+    const message = error instanceof Error ? error.message : 'Unknown download error'
+    throw new Error(`Failed to download "${bucket}/${key}" to "${localDestPath}": ${message}`)
+  }
 }
 
 export async function deleteFolder(connection: S3Connection, bucket: string, prefix: string) {
